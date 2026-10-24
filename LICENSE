@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 4l3x4nd3r
+Copyright (c) 2026 4l3x4nd3r0
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,12 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-This licence covers the code and the sprites drawn by the scripts in art\.
-It does not cover:
-  - mods/DaciaBody/dacia_model.txt (the Dacia 3D model), which was converted
-    from a third-party model whose licence is unconfirmed;
-  - mods/SniperRifle/sprites/sniper_*.png and art/sniper_render.png, which come
-    from a render of a low-poly model of the Team Fortress 2 Sniper Rifle whose
-    licence is also unknown. Team Fortress 2 belongs to Valve.
-See README.md, "Credits and licence".
