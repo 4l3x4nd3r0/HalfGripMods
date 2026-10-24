@@ -11,6 +11,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | DaciaBody | Dacia Logan rally body with its own 3D model | `giveitem dacia_body` |
 | BombRace | Race mode: stay above a speed or the bomb goes off | none, about 1 race in 10 |
 | InfinitePlayground | Endless floor for the `playground` command | `playground` |
+| Highway | New race map: two four-lane highways, one on a bridge over the other, with dirt shortcuts. Joins the run map pool | none, shows up as a map |
 
 Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
 
@@ -25,7 +26,7 @@ You need Windows and the game on Steam.
 
 ```
 BepInEx\HalfGripMods\
-  M1911\  RPG\  SniperRifle\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\
+  M1911\  RPG\  SniperRifle\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\
 ```
 
 To install only some, copy those folders from [`mods/`](mods) of this repo into `BepInEx\HalfGripMods\`. Each folder is one mod.
@@ -79,6 +80,16 @@ Settings: `Chance`, `SpeedShare`, `FuseSeconds`, `GraceSeconds`, `EliminateLast`
 ### InfinitePlayground
 A flat checker floor follows the car in the `playground` scene. Settings: `Enabled`, `HeightOffset`, `Size`, `TileSize`.
 
+### Highway
+A new race map, added to the run map's pool. Two four-lane highways cross in the middle, one on a bridge over the other, joined by two ramps into a 6.5 km lap that starts on the bridge highway. Both highways run on to the horizon.
+
+- **The road:** lanes about twice a car's width, a 10 m median with 2.3 m concrete walls and 120 m gaps (breakable signs stand in them), steel guardrail along the edges, concrete only on the bridge. Exit boards at 500, 250 and 150 m, in the style of Romanian motorway signs.
+- **Everything on the road breaks:** guardrail, signs, drums and cones come apart when your car touches them. Each guardrail piece takes 30% of your speed (three hits slow you a lot, five or six nearly stop you), a sign or drum takes 3%, cones take none.
+- **Roadworks:** the lower highway has a lane closed for works just before the bridge: median blocks, an arrow board, solid machinery and containers.
+- **Shortcuts:** each highway has an unfinished dirt road on the other side of the interchange, forked off at the exits and marked with cones. Heavy machinery stands along the edges with a wide free corridor. The game counts them as shortcuts. They are dirt, so your tyres decide how much they cost you.
+- **Nothing is copied from the game's files.** Meshes, textures and sprites are made by the mod at start; the pine trees are picked up from the forest maps at runtime (plain trees if they cannot be found).
+
+Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time objectives), `MedianGaps`, `MedianGapLength`, `SpeedLossPerPiece`, `SignSpeedLoss`, `Grip` and `Drag` (dirt roads), `ShowPath`.
 ## Settings, update, remove
 
 - Settings: each code mod writes `BepInEx\config\halfgrip.<mod id>.cfg` on first run, for example `halfgrip.sniperrifle.cfg`. Every entry has a comment. Edit with the game closed.

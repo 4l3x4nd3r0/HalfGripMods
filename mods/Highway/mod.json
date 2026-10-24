@@ -1,0 +1,8 @@
+﻿{
+  "id": "highway",
+  "name": "Highway",
+  "version": "0.9.0",
+  "author": "4l3x4nd3r",
+  "description": "A new race map: two four-lane highways, one on a bridge over the other, joined by two ramps into a 6.5 km lap. Concrete median with gaps, a roadworks lane under the bridge, and two unfinished dirt roads that are real shortcuts. Added to the run map's pool.",
+  "gameVersion": "0.418"
+}
