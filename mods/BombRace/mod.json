@@ -1,0 +1,8 @@
+{
+  "id": "bombrace",
+  "name": "Bomb Race",
+  "version": "1.0.0",
+  "author": "4l3x4nd3r",
+  "description": "A new race mode: a ticking bomb on your dash and a C4 on every car. Stay above your engine's speed and don't be last on a lap.",
+  "gameVersion": "0.418"
+}

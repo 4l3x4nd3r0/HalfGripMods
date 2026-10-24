@@ -1,0 +1,8 @@
+{
+  "id": "infiniteplayground",
+  "name": "Infinite Playground",
+  "version": "1.0.0",
+  "author": "4l3x4nd3r",
+  "description": "An endless flat floor for the console's playground command, to find the car's top speed.",
+  "gameVersion": "0.418"
+}

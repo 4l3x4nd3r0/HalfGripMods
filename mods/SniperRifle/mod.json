@@ -1,0 +1,8 @@
+{
+  "id": "sniperrifle",
+  "name": "Sniper Rifle",
+  "version": "1.0.0",
+  "author": "4l3x4nd3r",
+  "description": "A Legendary TF2-style bolt-action Sniper Rifle: loaded one round at a time, zoom, charge-up damage and a red laser dot.",
+  "gameVersion": "0.418"
+}

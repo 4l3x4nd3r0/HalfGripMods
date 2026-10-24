@@ -1,0 +1,13 @@
+{
+  "id": "speedcharms.winnersgrip",
+  "name": "Winner's Grip",
+  "flavour": "\"Thumbs up, foot down.\"",
+  "tier": "Stock",
+  "cost": 15,
+  "icon": "glove_icon.png",
+  "charm": "glove_charm.png",
+  "statBoosts": [
+    { "stat": "TopSpeed", "amount": 0.06 },
+    { "stat": "EnginePower", "amount": 0.06 }
+  ]
+}

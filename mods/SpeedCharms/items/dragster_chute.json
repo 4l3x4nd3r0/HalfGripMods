@@ -1,0 +1,14 @@
+{
+  "id": "speedcharms.chute",
+  "name": "Dragster Chute",
+  "flavour": "\"You were never going to stop anyway.\"",
+  "tier": "BlackMarket",
+  "cost": 35,
+  "icon": "chute_icon.png",
+  "charm": "chute_charm.png",
+  "statBoosts": [
+    { "stat": "TopSpeed", "amount": 0.15 },
+    { "stat": "EnginePower", "amount": 0.20 },
+    { "stat": "BrakePower", "amount": -0.40 }
+  ]
+}

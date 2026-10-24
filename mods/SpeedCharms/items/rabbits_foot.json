@@ -1,0 +1,14 @@
+{
+  "id": "speedcharms.rabbitfoot",
+  "name": "Rabbit's Foot",
+  "flavour": "\"Lucky for the rabbit? Debatable.\"",
+  "tier": "RaceSpec",
+  "cost": 25,
+  "icon": "rabbitfoot_icon.png",
+  "charm": "rabbitfoot_charm.png",
+  "statBoosts": [
+    { "stat": "TopSpeed", "amount": 0.12 },
+    { "stat": "EnginePower", "amount": 0.08 },
+    { "stat": "TireGrip", "amount": -0.05 }
+  ]
+}

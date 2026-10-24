@@ -1,0 +1,7 @@
+# Release zips
+release/
+# Redrawn art lands in art\ before it is copied into mods\*\sprites
+art/*.png
+!art/sniper_render.png
+art/__pycache__/
+*.pyc
