@@ -22,14 +22,12 @@ All mods are made for game version 0.418. On another version they still load, an
 You need Windows and the game on Steam.
 
 1. Install BepInEx and HalfGripTools. Steps 1 and 2 of the [HalfGripTools README](https://github.com/4l3x4nd3r0/HalfGripTools#install) cover both. Do this once.
-2. Download the zip from the [latest release](../../releases/latest). Unzip it into the game folder (the one with `HalfGrip.exe`), merge when asked about `BepInEx`. You get:
+2. Download this repo: click **Code**, then **Download ZIP** (or `git clone`), and unzip it. Copy the folders you want from [`mods/`](mods) into `BepInEx\HalfGripMods\` in the game folder (the one with `HalfGrip.exe`). Each folder is one mod. To install all of them you get:
 
 ```
 BepInEx\HalfGripMods\
   M1911\  RPG\  SniperRifle\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\
 ```
-
-To install only some, copy those folders from [`mods/`](mods) of this repo into `BepInEx\HalfGripMods\`. Each folder is one mod.
 
 3. Start the game, quit, open `BepInEx\LogOutput.log`. Each mod that loaded has a line:
 
@@ -93,7 +91,7 @@ Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time
 ## Settings, update, remove
 
 - Settings: each code mod writes `BepInEx\config\halfgrip.<mod id>.cfg` on first run, for example `halfgrip.sniperrifle.cfg`. Every entry has a comment. Edit with the game closed.
-- Update: replace the mod folder. It recompiles at the next start.
+- Update: download the repo again and replace the mod folder. It recompiles at the next start.
 - Remove: delete the folder, or switch it off in the mod manager.
 - Saves: items are saved by id. Without their mod, a saved run loses those items. Nothing else in the save changes.
 - The game marks runs with a `cheats` flag. For a vanilla run, switch the mods off and cheats off.
