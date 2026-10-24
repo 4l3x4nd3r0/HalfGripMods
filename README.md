@@ -22,7 +22,7 @@ All mods are made for game version 0.418. On another version they still load, an
 You need Windows and the game on Steam.
 
 1. Install BepInEx and HalfGripTools. Steps 1 and 2 of the [HalfGripTools README](https://github.com/4l3x4nd3r0/HalfGripTools#install) cover both. Do this once.
-2. Download `HalfGripMods-v1.0.0.zip` from the [releases page](../../releases/latest). Unzip it into the game folder (the one with `HalfGrip.exe`), merge when asked about `BepInEx`. You get:
+2. Download the zip from the [latest release](../../releases/latest). Unzip it into the game folder (the one with `HalfGrip.exe`), merge when asked about `BepInEx`. You get:
 
 ```
 BepInEx\HalfGripMods\
