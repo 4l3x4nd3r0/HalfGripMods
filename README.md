@@ -22,6 +22,18 @@ All mods are made for game version 0.418. On another version they still load, an
 
 You need Windows and the game on Steam.
 
+### Easy way: the installer
+
+1. Click **Code**, then **Download ZIP**, and unzip it.
+2. Open the `installer` folder and double-click `Install-HalfGrip-Mods.bat`.
+3. Start the game.
+
+It finds the game folder through Steam (or asks you to pick it), installs BepInEx 5.4.23.5 and the latest HalfGripTools, checks both downloads against their checksums, and copies in all the mods. Run it again to update. To remove everything, double-click `Uninstall-HalfGrip-Mods.bat`: it asks before it removes anything, asks separately about BepInEx, and never touches your saves.
+
+If you do not like running unknown software, the detailed steps are below, and they are more technical. The installer is one readable script, [`installer/Install-HalfGrip-Mods.ps1`](installer/Install-HalfGrip-Mods.ps1), that does exactly these steps.
+
+### Manual steps
+
 1. Install BepInEx and HalfGripTools. Steps 1 and 2 of the [HalfGripTools README](https://github.com/4l3x4nd3r0/HalfGripTools#install) cover both. Do this once.
 2. Download this repo: click **Code**, then **Download ZIP** (or `git clone`), and unzip it. Copy the folders you want from [`mods/`](mods) into `BepInEx\HalfGripMods\` in the game folder (the one with `HalfGrip.exe`). Each folder is one mod. To install all of them you get:
 
@@ -131,7 +143,7 @@ Have fun.
 
 - Settings: each code mod writes `BepInEx\config\halfgrip.<mod id>.cfg` on first run, for example `halfgrip.sniperrifle.cfg`. Every entry has a comment. Edit with the game closed.
 - Update: download the repo again and replace the mod folder. It recompiles at the next start.
-- Remove: delete the folder, or switch it off in the mod manager.
+- Remove: delete the folder, or switch it off in the mod manager. To remove everything, use `Uninstall-HalfGrip-Mods.bat`.
 - Saves: items are saved by id. Without their mod, a saved run loses those items. Nothing else in the save changes.
 - The game marks runs with a `cheats` flag. For a vanilla run, switch the mods off and cheats off.
 
