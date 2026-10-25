@@ -113,6 +113,16 @@ namespace Multiplayer
 			Rig.Shot("host_03_joined.png");
 			RigScenarios.Check(Room.Peers.Count == expected, expected + " players in the room (" + string.Join(",", Room.Peers.Select(p => p.Name).ToArray()) + ")");
 
+			// chat: everybody says hello to the room, the host answers each one by name; pings are measured; paint arrives
+			yield return RigScenarios.WaitFor(() => Chat.Lines.Count(l => !l.Mine && l.Text.StartsWith("hello from ")) >= expected - 1, 40f, "host: a chat message from every other player arrived");
+			foreach (Peer other in Room.Peers.Where(p => !p.Local).ToList())
+			{
+				Chat.Send("hi " + other.Name);
+			}
+			yield return RigScenarios.WaitFor(() => Room.Peers.Where(p => !p.Local).All(p => p.PingMs >= 0), 30f, "host: every other player has a ping");
+			Rig.Log("pings: " + string.Join(", ", Room.Peers.Select(p => p.Name + "=" + p.PingMs).ToArray()));
+			yield return RigScenarios.WaitFor(() => Room.Peers.Where(p => !p.Local).All(p => Skins.Colours(p.Skin) != null), 30f, "host: every other player's paint arrived");
+
 			string rigMode = Rig.Arg("-mpmode");
 			if (rigMode == "combat" || rigMode == "respawn")
 			{
@@ -170,6 +180,11 @@ namespace Multiplayer
 			Rig.Shot("client_01_room.png");
 			RigScenarios.Click("READY");
 			yield return RigScenarios.WaitFor(() => Room.Me != null && Room.Me.Ready, 10f, "the client is marked ready");
+			// the game's own paint scheme: red, green, blue (it is dropped with the rest of the sandbox)
+			PaintSchemes.Choose(PaintSchemes.Add(new[] { new Color(1f, 0f, 0f), new Color(0f, 1f, 0f), new Color(0f, 0f, 1f) }));
+			Chat.Send("hello from " + Rig.Label);
+			yield return RigScenarios.WaitFor(() => Chat.Lines.Any(l => !l.Mine && l.Text == "hi " + Rig.Label), 40f, "client: the host's chat answer arrived");
+			yield return RigScenarios.WaitFor(() => Room.Me.PingMs >= 0, 30f, "client: its own ping to the host is measured");
 			yield return Wait(3f);
 			Rig.Shot("client_03_waiting.png");
 

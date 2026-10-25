@@ -32,7 +32,11 @@ namespace Multiplayer
 		EndRace = 24,
 		Shot = 25,
 		Rocket = 26,
-		RocketEnd = 27
+		RocketEnd = 27,
+		Pong = 28,
+		Pings = 29,
+		Chat = 30,
+		Skin = 31
 	}
 
 	/// <summary>Writes one packet.</summary>

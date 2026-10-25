@@ -100,6 +100,11 @@ namespace Multiplayer
 			{
 				s.Mode = RaceSettings.ModeDemolition;
 			}
+			if (mode == "tournament")
+			{
+				s.Mode = RaceSettings.ModeTournament;
+				s.Rounds = 2;
+			}
 			if (mode == "respawn")
 			{
 				s.Wreck = RaceSettings.WreckRespawn;
@@ -127,6 +132,17 @@ namespace Multiplayer
 			}
 			RigScenarios.Check(RaceSync.Humans.Count() == RigRoom.Players - 1, "host: a stand-in car exists for each other player");
 			RigScenarios.Check(Room.AiGrid.Count == (mode == "ai" ? 2 : 0), "host: the AI cars are as set");
+			if (mode == "tournament")
+			{
+				// the other player's car wears the paint that player chose (red / green / blue)
+				Peer owner = Room.Peers.First(p => !p.Local);
+				yield return RigScenarios.WaitFor(() =>
+				{
+					RemoteCar car = RaceSync.RemoteOf(owner.Id);
+					CarSkinController paint = car == null ? null : car.GetComponent<CarSkinController>();
+					return paint != null && paint.carSkin != null && paint.carSkin.color1.r > 0.9f && paint.carSkin.color1.g < 0.1f && paint.carSkin.color2.g > 0.9f && paint.carSkin.color3.b > 0.9f;
+				}, 20f, "host: the other player's car wears the paint they chose");
+			}
 			yield return new WaitForSecondsRealtime(2f);
 			Rig.Shot("host_06_race.png");
 
@@ -163,7 +179,17 @@ namespace Multiplayer
 			{
 				RigScenarios.Check(Room.Peers.Count == 1, "host: the player who left is gone from the room");
 			}
-			if (mode == "race" || mode == "ai")
+			if (mode == "tournament")
+			{
+				RigScenarios.Check(Room.Round == 1 && Room.SeriesRounds == 2 && !Room.SeriesOver, "host: race 1 of 2 is counted (" + Room.Round + " of " + Room.SeriesRounds + ")");
+				foreach (ResultLine line in HumanResults())
+				{
+					Peer scorer = Room.Find(line.Id);
+					RigScenarios.Check(scorer != null && Mathf.Abs(scorer.Total - line.Score) < 0.01f, "host: " + line.Name + "'s tournament total (" + (scorer == null ? -1f : scorer.Total) + ") is the race score (" + line.Score + ")");
+				}
+				RigScenarios.Check(HumanResults().Count > 0 && HumanResults()[0].Score > 0f, "host: the winner scored points");
+			}
+			if (mode == "race" || mode == "ai" || mode == "tournament")
 			{
 				RigScenarios.Check(HumanResults().Count > 0 && HumanResults()[0].Name == "A" && HumanResults()[0].State == 0, "host: the faster bot (A) won");
 				RigScenarios.Check(HumanResults().Count > 1 && HumanResults()[1].Name == "B" && HumanResults()[1].State == 0, "host: B finished second");
@@ -179,7 +205,7 @@ namespace Multiplayer
 			yield return RigScenarios.WaitFor(() => Room.Phase == Phase.Results && Flow.InMenu, 60f, "host: the results screen (in the menu) is up");
 			yield return new WaitForSecondsRealtime(2f);
 			Rig.Shot("host_07b_results_screen.png");
-			if (mode == "race" || mode == "ai")
+			if (mode == "race" || mode == "ai" || mode == "tournament")
 			{
 				RigScenarios.Check(HumanResults().Where(l => l.State == 0).All(l => l.BestLap > 0f), "host: every finisher has a best lap in the results");
 			}
@@ -297,6 +323,12 @@ namespace Multiplayer
 			yield return new WaitForSecondsRealtime(1.5f);
 			Rig.Shot("client_05_results.png");
 			yield return RigScenarios.WaitFor(() => Room.Phase == Phase.Results && Flow.InMenu, 60f, "client: the results screen is up");
+			if (mode == "tournament")
+			{
+				yield return RigScenarios.WaitFor(() => Room.Round == 1 && Room.SeriesRounds == 2, 10f, "client: the roster says race 1 of 2");
+				ResultLine mine = Room.Results.FirstOrDefault(l => !l.Ai && l.Id == Room.LocalId);
+				RigScenarios.Check(Room.Me != null && Mathf.Abs(Room.Me.Total - mine.Score) < 0.01f, "client: its tournament total (" + (Room.Me == null ? -1f : Room.Me.Total) + ") is its race score (" + mine.Score + ")");
+			}
 			yield return new WaitForSecondsRealtime(1f);
 			Rig.Shot("client_05b_results_screen.png");
 			yield return RigScenarios.WaitFor(() => Room.Phase == Phase.Lobby && Flow.InMenu, 60f, "client: back in the room after the results");

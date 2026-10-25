@@ -27,6 +27,10 @@ namespace Multiplayer
 		/// <summary>Muted input also blocks the game's own Escape check, so Escape closes the menu from here.</summary>
 		internal static void Tick()
 		{
+			if (Chat.Typing)
+			{
+				return; // Escape belongs to the chat line while it is open
+			}
 			if ((object)held == null)
 			{
 				// a finished player's controls are let go of, which also blocks the game's own Escape: open the pause menu from here
