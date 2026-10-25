@@ -71,4 +71,94 @@ namespace HalfGripHighway
 			return !HighwayScene.TryClosest(__instance, position, out __result);
 		}
 	}
+
+	/// <summary>Remembers which car the lap manager is measuring, so <see cref="LapCounterPatch"/> knows where it is.</summary>
+	[HarmonyPatch(typeof(LapManager), "GetCarProjectedPoint")]
+	internal static class MeasureScope
+	{
+		private static void Prefix(GameObject car)
+		{
+			HighwayScene.MeasuredCar = HighwayScene.Loaded ? car : null;
+		}
+
+		private static void Finalizer()
+		{
+			HighwayScene.MeasuredCar = null;
+		}
+	}
+
+	/// <summary>
+	/// The game reads a change of nearest track sample as the shorter way round the loop. A dirt shortcut jumps about half a lap, so one of
+	/// them (the east road) read as driving backwards: a backwards lap was counted and the next line crossing only paid it back. On a dirt
+	/// road a big jump is read from the car's own direction instead: along the road is forward, against it is backward.
+	/// </summary>
+	[HarmonyPatch(typeof(LapManager), "LapCounter")]
+	internal static class LapCounterPatch
+	{
+		private static bool Prefix(int prevIndex, int currentIndex, int count, int lapCount, int backwardsLaps, ref (int, int, int) __result)
+		{
+			GameObject car = HighwayScene.MeasuredCar;
+			if (car == null || count <= 0)
+			{
+				return true;
+			}
+			int forward = (currentIndex - prevIndex + count) % count;
+			if (Mathf.Min(forward, count - forward) <= count / 4)
+			{
+				return true;
+			}
+			if (!HighwayScene.OnDirt(car.transform.position, out Vector3 along))
+			{
+				return true;
+			}
+			Rigidbody body = car.GetComponent<Rigidbody>();
+			Vector3 heading = body != null && body.linearVelocity.sqrMagnitude > 1f ? body.linearVelocity : car.transform.forward;
+			heading.y = 0f;
+			bool ahead = Vector3.Dot(heading.normalized, along) >= 0f;
+			int step = ahead ? forward : forward - count;
+			if (ahead && currentIndex < prevIndex)
+			{
+				if (backwardsLaps == 0)
+				{
+					lapCount++;
+				}
+				else
+				{
+					backwardsLaps--;
+				}
+			}
+			else if (!ahead && currentIndex > prevIndex)
+			{
+				backwardsLaps++;
+			}
+			__result = (step, lapCount, backwardsLaps);
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// The "Wrong way" hint compares the car's heading with the nearest sample of the racing line. The north dirt road runs where the real
+	/// south-west ramp's mirror image is, so its nearest samples point the other way. On dirt the road's own direction is used.
+	/// </summary>
+	[HarmonyPatch(typeof(PlayerResetLogic), "IsGoingBackwards")]
+	internal static class WrongWayPatch
+	{
+		private static bool Prefix(PlayerResetLogic __instance, CarControllerNew ___player, ref bool __result)
+		{
+			if (!HighwayScene.Loaded || ___player == null || ___player.rb == null
+				|| !HighwayScene.OnDirt(___player.transform.position, out Vector3 along))
+			{
+				return true;
+			}
+			if (___player.debugSpeed < __instance.wrongWaySpeed || ___player.forwardSpeed < 0f)
+			{
+				__result = false;
+				return false;
+			}
+			Vector3 velocity = ___player.rb.linearVelocity;
+			velocity.y = 0f;
+			__result = Vector3.Dot(velocity.normalized, along) < -0.5f;
+			return false;
+		}
+	}
 }

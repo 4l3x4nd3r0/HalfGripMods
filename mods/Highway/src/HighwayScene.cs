@@ -38,12 +38,52 @@ namespace HalfGripHighway
 			return index >= 0;
 		}
 
+		// ---- the dirt shortcuts ------------------------------------------------------------------------------------
+
+		private static readonly List<List<Vector3>> dirtLines = new List<List<Vector3>>();
+
+		/// <summary>The car whose track position the lap manager is measuring right now (set by <see cref="MeasureScope"/>).</summary>
+		internal static GameObject MeasuredCar;
+
+		internal static bool Loaded => path != null && dirtLines.Count > 0;
+
+		/// <summary>On a dirt shortcut: <paramref name="along"/> is the direction the race takes it (the lines are built in race order).</summary>
+		internal static bool OnDirt(Vector3 p, out Vector3 along)
+		{
+			along = Vector3.forward;
+			float best = (Plan.RaceHalf + 4f) * (Plan.RaceHalf + 4f);
+			bool found = false;
+			foreach (List<Vector3> line in dirtLines)
+			{
+				for (int i = 0; i + 1 < line.Count; i++)
+				{
+					Vector3 a = line[i];
+					Vector3 b = line[i + 1];
+					float abx = b.x - a.x;
+					float abz = b.z - a.z;
+					float t = Mathf.Clamp01(((p.x - a.x) * abx + (p.z - a.z) * abz) / Mathf.Max(1e-4f, abx * abx + abz * abz));
+					float dx = a.x + abx * t - p.x;
+					float dz = a.z + abz * t - p.z;
+					float d = dx * dx + dz * dz;
+					if (d < best && Mathf.Abs(Mathf.Lerp(a.y, b.y, t) - p.y) < 4f)
+					{
+						best = d;
+						along = new Vector3(abx, 0f, abz).normalized;
+						found = true;
+					}
+				}
+			}
+			return found;
+		}
+
 		// ---- load / unload -----------------------------------------------------------------------------------------
 
 		internal static void OnSceneLoaded(Scene scene)
 		{
 			path = null;
 			weighted = null;
+			dirtLines.Clear();
+			MeasuredCar = null;
 			root = null;
 			hidden.Clear();
 			rainPlane = null;
@@ -87,6 +127,8 @@ namespace HalfGripHighway
 			hidden.Clear();
 			path = null;
 			weighted = null;
+			dirtLines.Clear();
+			MeasuredCar = null;
 			root = null;
 		}
 
@@ -120,6 +162,9 @@ namespace HalfGripHighway
 			}
 
 			Route route = Route.Build();
+			dirtLines.Clear();
+			dirtLines.Add(route.DirtEast);
+			dirtLines.Add(route.DirtNorth);
 			RoadBuilder builder = new RoadBuilder { Gaps = Mod.MedianGaps.Value, GapLength = Mod.MedianGapLength.Value };
 			builder.Build(route);
 
