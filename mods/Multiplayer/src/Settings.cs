@@ -12,6 +12,9 @@ namespace Multiplayer
 		internal const int WreckSpectate = 0;
 		internal const int WreckRespawn = 1;
 
+		/// <summary>The host's MAP setting for "pick one for me": turned into a real map and layout when the race starts.</summary>
+		internal const string RandomMap = "*random";
+
 		internal string Map = "";
 		internal int Variant;
 		internal int Laps = 3;

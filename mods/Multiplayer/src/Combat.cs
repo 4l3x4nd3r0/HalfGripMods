@@ -109,6 +109,7 @@ namespace Multiplayer
 				{
 					cc.wheels[wheel].deadTime = 6f;
 					TextController.EnqueueRandomText(1f, "TIRE SHOT");
+					Cues.FlashFrom(RaceSync.RemoteOf(from));
 				}
 				return;
 			}
@@ -117,6 +118,7 @@ namespace Multiplayer
 				return;
 			}
 			amount = Math.Min(amount, 150f);
+			Cues.FlashFrom(RaceSync.RemoteOf(from));
 			me.LastAttacker = from;
 			me.LastAttackTime = Time.time;
 			Applying = true;
@@ -193,8 +195,9 @@ namespace Multiplayer
 	[HarmonyPatch(typeof(EnemyGun), "HandleHit")]
 	internal static class TagAiShot
 	{
-		private static void Prefix(EnemyGun __instance)
+		private static void Prefix(EnemyGun __instance, RaycastHit hit, Ray shotRay)
 		{
+			Cues.FlashIfPlayerHit(hit, shotRay.origin);
 			Combat.AiShot = true;
 			Combat.AiShooterNow = RaceSync.AiIndexOfGun(__instance);
 		}

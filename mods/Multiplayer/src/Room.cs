@@ -74,6 +74,8 @@ namespace Multiplayer
 		internal static bool Locked;
 		internal static readonly List<Peer> Peers = new List<Peer>();
 		internal static RaceSettings Settings = new RaceSettings();
+		/// <summary>The map of the last race this machine started as host, so RANDOM does not roll it twice in a row.</summary>
+		private static string lastMap = "";
 		internal static RaceSettings Race; // the settings of the race in progress
 		internal static List<int> AiGrid = new List<int>();
 		internal static int Seed;
@@ -703,6 +705,15 @@ namespace Multiplayer
 				case Msg.Hit:
 					Combat.OnHit(from, r);
 					break;
+				case Msg.Shot:
+					Cues.OnShot(from, r);
+					break;
+				case Msg.Rocket:
+					Cues.OnRocket(from, r);
+					break;
+				case Msg.RocketEnd:
+					Cues.OnRocketEnd(from, r);
+					break;
 				case Msg.Wrecked:
 					OnWrecked(from, r);
 					break;
@@ -896,13 +907,32 @@ namespace Multiplayer
 				return;
 			}
 			RaceSettings s = Settings.Copy();
+			System.Random random = new System.Random();
+			if (s.Map == RaceSettings.RandomMap)
+			{
+				// Everybody else is told the real map: only the host rolls. Never the map just raced, if there is another.
+				List<MapDefinition> maps = Garage.Maps();
+				List<MapDefinition> pool = maps.Where(m => m.name != lastMap).ToList();
+				if (pool.Count == 0)
+				{
+					pool = maps;
+				}
+				if (pool.Count > 0)
+				{
+					MapDefinition rolled = pool[random.Next(pool.Count)];
+					List<int> layouts = Garage.Variants(rolled);
+					s.Map = rolled.name;
+					s.Variant = layouts[random.Next(layouts.Count)];
+					Mod.Log.LogInfo("Random map: " + s.Map + " (" + (TrackVariant)s.Variant + ")");
+				}
+			}
 			if (Garage.FindMap(s.Map) == null)
 			{
 				Say("Pick a map first.");
 				return;
 			}
+			lastMap = s.Map;
 			Pvp.Save(s);
-			System.Random random = new System.Random();
 			List<int> slots = Enumerable.Range(0, 6).OrderBy(i => random.Next()).ToList();
 			int humans = Peers.Count;
 			W w = new W(Msg.Start);

@@ -84,7 +84,7 @@ namespace Multiplayer
 			RaceSettings s = Room.Settings;
 			List<MapDefinition> maps = Garage.Maps();
 			string wanted = Rig.Arg("-mpmap");
-			s.Map = (maps.FirstOrDefault(m => m.name == (wanted ?? "Stadium")) ?? maps[0]).name;
+			s.Map = wanted == "random" ? RaceSettings.RandomMap : (maps.FirstOrDefault(m => m.name == (wanted ?? "Stadium")) ?? maps[0]).name;
 			s.Variant = 0;
 			s.Laps = 1;
 			s.Ai = 0;
@@ -120,6 +120,11 @@ namespace Multiplayer
 			yield return RigScenarios.WaitFor(() => Room.Phase == Phase.Loading || Room.Phase == Phase.Racing, 20f, "host: the race was started");
 			yield return WaitRaceStarted("host");
 			Rig.Log("race mode " + mode + " on " + Room.Race.Map + ", AI " + Room.AiGrid.Count);
+			if (Rig.Arg("-mpmap") == "random")
+			{
+				RigScenarios.Check(Room.Race.Map != RaceSettings.RandomMap && Garage.FindMap(Room.Race.Map) != null, "host: RANDOM became a real map (" + Room.Race.Map + ", " + (TrackVariant)Room.Race.Variant + ")");
+				RigScenarios.Check(Room.Settings.Map == RaceSettings.RandomMap, "host: the setting stays RANDOM for the next race");
+			}
 			RigScenarios.Check(RaceSync.Humans.Count() == RigRoom.Players - 1, "host: a stand-in car exists for each other player");
 			RigScenarios.Check(Room.AiGrid.Count == (mode == "ai" ? 2 : 0), "host: the AI cars are as set");
 			yield return new WaitForSecondsRealtime(2f);
@@ -227,6 +232,7 @@ namespace Multiplayer
 			yield return new WaitForSecondsRealtime(2f);
 			Gun gun = UnityEngine.Object.FindObjectsByType<Gun>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault(g => Traverse.Create(g).Property("Fitted").GetValue() != null);
 			RigScenarios.Check(gun != null, "host: a gun is fitted (the revolver from the loadout)");
+			RigScenarios.Check(target.Gun != null && !target.Gun.enabled && target.Gun.revolverModel != null, "host: B's stand-in kept its gun parts but its AI gun is off");
 			if (gun == null)
 			{
 				yield break;
@@ -333,6 +339,8 @@ namespace Multiplayer
 			yield return RigScenarios.WaitFor(() => link.hp < full - 0.01f, 30f, "client: took the first hit");
 			yield return new WaitForSecondsRealtime(0.1f);
 			float firstHp = link.hp;
+			RigScenarios.Check(Cues.ShotsSeen > 0, "client: the host's shot was drawn as a tracer (" + Cues.ShotsSeen + " seen)");
+			RigScenarios.Check(Cues.Flashes > 0, "client: the hit raised a mark at the screen edge (" + Cues.Flashes + ")");
 			Rig.Log("hp after the first hit: " + firstHp + " of " + full);
 			RigScenarios.Check(Mathf.Abs((full - firstHp) - perHit) < 0.6f, "client: the first hit took " + (full - firstHp).ToString("0.##") + " HP, expected " + perHit.ToString("0.##"));
 			yield return RigScenarios.WaitFor(() => link.hp <= 0f, 30f, "client: wrecked after " + shots + " hits");
