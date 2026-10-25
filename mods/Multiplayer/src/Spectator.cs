@@ -140,7 +140,7 @@ namespace Multiplayer
 				refreshAt = Time.unscaledTime + 0.5f;
 				targets = RaceSync.WatchTargets();
 			}
-			bool cycle = Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.Space);
+			bool cycle = Mod.SpectateNext() || Input.GetKeyDown(KeyCode.Space);
 			int at = -1;
 			for (int i = 0; i < targets.Count; i++)
 			{

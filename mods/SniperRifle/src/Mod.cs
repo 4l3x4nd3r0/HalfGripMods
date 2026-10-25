@@ -42,6 +42,13 @@ namespace HalfGripSniper
 			Log = ctx.Log;
 			Ctx = ctx;
 
+			if (!ModKeyShim.Supported(ctx))
+			{
+				Log.LogError("Sniper Rifle needs HalfGripTools 1.0.2 or newer (this one is older), so it is not loaded. Update HalfGripTools.");
+				return;
+			}
+			ModKeyShim.Add(ctx, KeyCode.Z, "Scope in / out (Sniper Rifle, raised)", Controls.Section.Looking);
+
 			Rounds = ctx.Config.Bind("Sniper Rifle", "Rounds", 4, "Cartridges on the rack at the start of a race. Each is loaded by hand, one at a time. Every extra magazine the car gets (items, pickups, kills) is worth 2 more.");
 			BaseDamage = ctx.Config.Bind("Sniper Rifle", "BaseDamage", 50f, "Damage of a quick shot, fired with no charge. For scale: the SMG does 7 a bullet, the revolver 35, the slug shotgun 60; a car starts a race with about 100 health.");
 			HalfChargeDamage = ctx.Config.Bind("Sniper Rifle", "HalfChargeDamage", 80f, "Damage with the charge bar half full.");

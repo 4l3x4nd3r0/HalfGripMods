@@ -29,7 +29,10 @@ namespace Multiplayer
 		Ping = 21,
 		Stats = 22,
 		Despawn = 23,
-		EndRace = 24
+		EndRace = 24,
+		Shot = 25,
+		Rocket = 26,
+		RocketEnd = 27
 	}
 
 	/// <summary>Writes one packet.</summary>

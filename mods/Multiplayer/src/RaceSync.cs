@@ -54,6 +54,8 @@ namespace Multiplayer
 		private static CarControllerNew finishOwner;
 
 		internal static TrackManager TM { get { return tm; } }
+		/// <summary>True while another player's stand-in car is being created.</summary>
+		internal static bool MakingHuman;
 		internal static bool LocalOut { get { return localOut; } }
 		internal static bool InRace { get { return tm != null && Room.Active && Room.Race != null; } }
 		internal static IEnumerable<RemoteCar> Humans { get { return humans.Values.Where(r => r != null); } }
@@ -77,6 +79,7 @@ namespace Multiplayer
 		internal static void Remove()
 		{
 			Spectator.Stop();
+			Cues.Remove();
 			humans.Clear();
 			aiProxies.Clear();
 			aiReal.Clear();
@@ -459,7 +462,16 @@ namespace Multiplayer
 		/// <summary>Somebody else's car, or on a client one of the host's AI cars: driven by the network.</summary>
 		private static RemoteCar SpawnProxy(TrackManager manager, List<EnemyController> enemies, Vector3 at, Quaternion heading, string carName, ulong peerId, bool ai, int aiIndex)
 		{
-			EnemyController ec = MakeCar(manager, enemies, at, heading, carName, ai ? "Enemy_aiproxy" + aiIndex : "Remote_" + carName);
+			EnemyController ec;
+			MakingHuman = !ai; // read by the EnemyGun.Awake patch: another player's car must keep its gun parts and never shoot by itself
+			try
+			{
+				ec = MakeCar(manager, enemies, at, heading, carName, ai ? "Enemy_aiproxy" + aiIndex : "Remote_" + carName);
+			}
+			finally
+			{
+				MakingHuman = false;
+			}
 			return RemoteCar.Make(ec.gameObject, peerId, ai, aiIndex);
 		}
 
@@ -494,7 +506,9 @@ namespace Multiplayer
 				{
 					nextSend = now + 0.05f;
 					SendState();
+					Cues.SendRockets();
 				}
+				Cues.Tick();
 				WatchWreck();
 				if (now >= nextStats)
 				{
@@ -534,6 +548,7 @@ namespace Multiplayer
 			CarLink link = tm.playerCarlink;
 			float hp = link != null && link.MaxHp > 0f ? Mathf.Clamp01(link.hp / link.MaxHp) : 1f;
 			W w = new W(Msg.Car).Vec(cc.rb.position).Rot(cc.rb.rotation).Vec(cc.rb.linearVelocity).F32(cc.steeringAngleDeg).F32(hp);
+			Cues.WriteAim(w, cc);
 			Room.SendAll(w, false);
 		}
 
@@ -550,6 +565,7 @@ namespace Multiplayer
 			float steer = r.F32();
 			float hp = r.F32();
 			rc.OnState(p, q, v, steer, hp);
+			Cues.ReadAim(rc, r);
 		}
 
 		private static void SendAi()

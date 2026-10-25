@@ -245,7 +245,7 @@ namespace Multiplayer
 			Ui.Label(view, "DAMAGE TO PLAYERS", 44f, Ui.Amber, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft1 + 355f, 300f), new Vector2(710f, 56f));
 
 			MapDefinition Map() { return Garage.FindMap(Room.Settings.Map); }
-			AddRow(view, 0, "MAP", () => Garage.MapLabel(Map()), () => CycleMap(-1), () => CycleMap(1));
+			AddRow(view, 0, "MAP", () => Room.Settings.Map == RaceSettings.RandomMap ? "RANDOM" : Garage.MapLabel(Map()), () => CycleMap(-1), () => CycleMap(1));
 			AddRow(view, 0, "LAYOUT", () => VariantName(Room.Settings.Variant), () => CycleVariant(-1), () => CycleVariant(1), () => Garage.Variants(Map()).Count > 1);
 			AddRow(view, 0, "MODE", () => RaceSettings.ModeName(Room.Settings.Mode), () => ChangeMode(), () => ChangeMode());
 			AddRow(view, 0, "LAPS", () => Room.Settings.Laps.ToString(), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps - 1, 1, 10)), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps + 1, 1, 10)), () => Room.Settings.Mode == RaceSettings.ModeRace);
@@ -302,11 +302,14 @@ namespace Multiplayer
 			{
 				return;
 			}
-			int at = Math.Max(0, maps.FindIndex(m => m.name == Room.Settings.Map));
-			MapDefinition next = maps[(at + d + maps.Count) % maps.Count];
+			// RANDOM is the first stop in the list, before the real maps
+			List<string> names = new List<string> { RaceSettings.RandomMap };
+			names.AddRange(maps.Select(m => m.name));
+			int at = Math.Max(0, names.IndexOf(Room.Settings.Map));
+			string next = names[(at + d + names.Count) % names.Count];
 			Edit(s =>
 			{
-				s.Map = next.name;
+				s.Map = next;
 				s.Variant = 0;
 			});
 		}
@@ -674,7 +677,7 @@ namespace Multiplayer
 			readyButton.interactable = lobby && me != null;
 			Ui.SetText(readyButton, me != null && me.Ready ? "NOT READY" : "READY");
 			Holder(startButton).SetActive(Room.IsHost);
-			bool canStart = lobby && Room.AllReady && Garage.FindMap(Room.Settings.Map) != null;
+			bool canStart = lobby && Room.AllReady && (Room.Settings.Map == RaceSettings.RandomMap || Garage.FindMap(Room.Settings.Map) != null);
 			startButton.interactable = canStart;
 			startButton.targetGraphic.color = canStart ? Color.white : new Color(0.45f, 0.45f, 0.45f, 1f);
 			settingsButton.interactable = lobby;

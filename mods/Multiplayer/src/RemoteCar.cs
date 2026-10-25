@@ -21,6 +21,15 @@ namespace Multiplayer
 		internal Rigidbody Body;
 		internal float HpFraction = 1f;
 
+		// What the player behind this car is doing with a gun (see Cues): the gun type + 1, 0 when no gun is raised, where it points, whom it points at.
+		internal EnemyGun Gun;
+		internal int AimGun;
+		internal Vector3 AimPoint;
+		internal ulong AimedAt;
+		internal float AimStamp;
+		internal LineRenderer Laser;
+		internal float LaserAlpha;
+
 		private Vector3 position;
 		private Vector3 velocity;
 		private Quaternion rotation = Quaternion.identity;
@@ -53,6 +62,11 @@ namespace Multiplayer
 			rc.IsAi = ai;
 			rc.AiIndex = aiIndex;
 			rc.Controller = car.GetComponent<EnemyController>();
+			rc.Gun = car.GetComponentInChildren<EnemyGun>(true);
+			if (!ai && rc.Gun != null)
+			{
+				rc.Gun.enabled = false; // the game's AI must not shoot from another player's car; Cues shows the player's own aim instead
+			}
 			rc.Car = car.GetComponent<CarControllerNew>();
 			rc.Body = car.GetComponent<Rigidbody>();
 			if (rc.Body != null)
@@ -112,6 +126,10 @@ namespace Multiplayer
 			}
 			// the countdown switches every enemy on; this one is driven from the network
 			Controller.canMove = false;
+			if (Human)
+			{
+				Cues.UpdateStandIn(this);
+			}
 			if (Car != null)
 			{
 				Car.steeringAngleDeg = steer;

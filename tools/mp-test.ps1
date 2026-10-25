@@ -16,6 +16,7 @@
 #   mismatch    a player whose mod files differ is refused, with the reason
 #   trio        three players race
 #   highway     a room race on the Highway mod's map (needs the Highway mod)
+#   random      the host's MAP is RANDOM: it turns into a real map and layout when the race starts
 #   unload      switching the mod off restores the menu
 #   maps        every track has enough grid spots
 #   steam       one game, the real Steam backend: create a lobby, find it by code (creates a Steam lobby for a few seconds)
@@ -29,7 +30,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
-if ($Suite -contains "all") { $Suite = @("idle", "unload", "maps", "race", "ai", "combat", "respawn", "hostquit", "clientquit", "mismatch", "trio", "highway", "steam") }
+if ($Suite -contains "all") { $Suite = @("idle", "unload", "maps", "race", "ai", "combat", "respawn", "hostquit", "clientquit", "mismatch", "trio", "highway", "random", "steam") }
 
 function Start-Rig([string]$Name, [string]$Scenario, [string]$Label, [string]$Out, [string[]]$Mods, [string]$More, [switch]$Tamper) {
 	$rig = Join-Path $Work "game\$Name"
@@ -108,7 +109,7 @@ foreach ($name in $Suite) {
 		}
 		default {
 			$players = $labels.Count
-			$more = "-mplocal 1 -mpmode $mode -mpplayers $players" + $(if ($name -eq "highway") { " -mpmap Highway" } else { "" })
+			$more = "-mplocal 1 -mpmode $mode -mpplayers $players" + $(if ($name -eq "highway") { " -mpmap Highway" } elseif ($name -eq "random") { " -mpmap random" } else { "" })
 			Start-Rig "A" "host" "A" $out $mods "$more -mpid 101"
 			Start-Sleep -Seconds 4
 			Start-Rig "B" "client" "B" $out $mods "$more -mpid 202"
