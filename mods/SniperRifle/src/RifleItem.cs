@@ -55,7 +55,7 @@ namespace HalfGripSniper
 			int quick = Mathf.RoundToInt(Mod.BaseDamage.Value);
 			string[] rows =
 			{
-				"Press Z to scope in and charge up",
+				"Press {Z} to scope in and charge up",
 				quick + " to " + Mathf.RoundToInt(Mod.FullChargeDamage.Value) + " damage in " + Mod.ChargeTime.Value.ToString("0.#") + " s, " + quick + " unscoped",
 				"Bolt-Action"
 			};
