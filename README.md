@@ -11,7 +11,8 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | DaciaBody | Dacia Logan rally body with its own 3D model | `giveitem dacia_body` |
 | BombRace | Race mode: stay above a speed or the bomb goes off | none, about 1 race in 10 |
 | InfinitePlayground | Endless floor for the `playground` command | `playground` |
-| Highway | New race map: two four-lane highways, one on a bridge over the other, with dirt shortcuts. Joins the run map pool | none, shows up as a map |
+| Highway | Race map built in code: two four-lane highways, one on a bridge over the other, dirt shortcuts, breakable roadside objects. In the run map pool | none, shows up as a map |
+| Multiplayer | Races for 2 to 6 players over Steam: host-run room, same mods required, PvP damage and AI rivals set by the host | none, the MULTIPLAYER button in the main menu |
 
 Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
 
@@ -26,7 +27,7 @@ You need Windows and the game on Steam.
 
 ```
 BepInEx\HalfGripMods\
-  M1911\  RPG\  SniperRifle\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\
+  M1911\  RPG\  SniperRifle\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  Multiplayer\
 ```
 
 3. Start the game, quit, open `BepInEx\LogOutput.log`. Each mod that loaded has a line:
@@ -79,15 +80,53 @@ Settings: `Chance`, `SpeedShare`, `FuseSeconds`, `GraceSeconds`, `EliminateLast`
 A flat checker floor follows the car in the `playground` scene. Settings: `Enabled`, `HeightOffset`, `Size`, `TileSize`.
 
 ### Highway
-A new race map, added to the run map's pool. Two four-lane highways cross in the middle, one on a bridge over the other, joined by two ramps into a 6.5 km lap that starts on the bridge highway. Both highways run on to the horizon.
+A race map, added to `RunConfig.maps` as track index 20. A mod cannot add a scene, so the map is built from code inside the Stadium scene when a Highway race loads. Stadium hosts it; its own track is not used.
 
-- **The road:** lanes about twice a car's width, a 10 m median with 2.3 m concrete walls and 120 m gaps (breakable signs stand in them), steel guardrail along the edges, concrete only on the bridge. Exit boards at 500, 250 and 150 m, in the style of Romanian motorway signs.
-- **Everything on the road breaks:** guardrail, signs, drums and cones come apart when your car touches them. Each guardrail piece takes 30% of your speed (three hits slow you a lot, five or six nearly stop you), a sign or drum takes 3%, cones take none.
-- **Roadworks:** the lower highway has a lane closed for works just before the bridge: median blocks, an arrow board, solid machinery and containers.
-- **Shortcuts:** each highway has an unfinished dirt road on the other side of the interchange, forked off at the exits and marked with cones. Heavy machinery stands along the edges with a wide free corridor. The game counts them as shortcuts. They are dirt, so your tyres decide how much they cost you.
-- **Nothing is copied from the game's files.** Meshes, textures and sprites are made by the mod at start; the pine trees are picked up from the forest maps at runtime (plain trees if they cannot be found).
+What is in it: two four-lane highways crossing, one on a bridge over the other, joined by two ramps. The lap is 6.5 km and starts on the bridge highway. Both highways run on to the horizon. Lanes are about twice a car's width, the median is 10 m with 2.3 m concrete walls and a gap every 120 m, with steel guardrail along the edges. The lower highway has a closed lane before the bridge (median blocks, arrow board, machinery, containers). Each highway has an unfinished dirt road on the far side of the interchange, forked off at the exits; the game scores them as shortcuts.
+
+How it works:
+
+- **Geometry:** meshes, textures and sprites are generated at load. Nothing is copied from the game's files. Pine trees are picked up from the forest maps at runtime (plain trees if they are not found). The ground material is borrowed from Stadium.
+- **Track line:** the control points of the game's `PathManager` are replaced by the highway's loop; the racing line the AI follows is baked from it. Laps count when the nearest-sample index wraps.
+- **Stacked roads:** the game finds "where on the track" a car is with a 3D nearest-sample lookup, which confuses two roads on top of each other. The mod replaces `PathManager.GetClosestPointIndex` with its own tree that weighs height four times.
+- **Dirt shortcuts:** an index jump over a quarter of the samples would count as a backwards lap or "Wrong way", so the lap counter and the wrong-way check are patched to use the direction of the dirt road when the car is on one.
+- **Breakables:** guardrail, signs, drums and cones are script-driven pieces, not rigid bodies (rigid bodies cost too many frames). A touched piece breaks. Each guardrail piece takes 30% of your speed, a sign or drum 3%, cones nothing.
+- **Resets:** the game's reset ray is shortened so a reset under the bridge finds the lower deck.
+
+Known: a few gaps of 1 to 3 m where a highway wall meets a ramp wall. A saved run that includes Highway needs the mod loaded to be restored.
 
 Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time objectives), `MedianGaps`, `MedianGapLength`, `SpeedLossPerPiece`, `SignSpeedLoss`, `Grip` and `Drag` (dirt roads), `ShowPath`.
+
+### Multiplayer
+Races for 2 to 6 players over Steam. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo").
+
+**Using it.** The MULTIPLAYER screen has GARAGE, HOST ROOM and JOIN ROOM.
+
+- GARAGE opens the game's garage with no room: no shop, no money, every item in the inventory except Slow-Mo, the Inverter, map rerolls, run boons and other consumables. What you fit is kept in `BepInEx\config\halfgrip.multiplayer.loadout.txt`. With nothing fitted you start with the Gunslinger and Nitro Head items, without Nitro Head's handicap. Esc goes back.
+- HOST ROOM makes a Steam lobby and a 6-character code. Others type it under JOIN ROOM, or accept a Steam invite while they are at the main menu. INVITE FRIENDS lists your online Steam friends. The host can lock the room and kick players.
+- In the room everybody but the host presses READY. The host sees START RACE (grey until all are ready) and sets the race in RACE SETTINGS: map, layout, mode (Race or Demolition), laps, up to 5 AI rivals, what a wreck does (out and watch, or respawn after a delay), and the damage multipliers. Other players can open the settings but not change them.
+- During the race Pause does not stop time. Your car is released while the menu is open. Leaving from it is a disconnect.
+- Once you cross the line you let go of the controls and the car cannot be hurt. After a few seconds it is hidden, the others see it wrecked away, and you watch from a drone (Tab: next car, bots too). RACE RESULTS stays locked until every player has finished or is out; then it ends the race even if bots are still driving. Only the winner gets the game's SUCCESS text.
+- The results list place, best lap, total time, KOs, WOs and a score for each car, bots included. Score follows the single-player rule: place payout (finishers), survival, kills, and what you picked up on the way. A wrecked car scores 0. The host sends everybody back to the lobby.
+
+**How it works.**
+
+- **Host authority.** The host holds the room: phase, settings, roster. Clients send requests (ready, finished, wrecked, stats) and mirror the host's roster. Phases: lobby, loading, racing, results.
+- **Network.** Steam lobbies for rooms (lobby data carries the code and the mod checksum), Steam P2P for messages: small binary packets, reliable for control, unreliable for car state at 20 Hz. Sessions are only accepted from lobby members. The mod uses the Steam library the game already ships.
+- **Same mods.** Each mod gets a SHA-256 over every file in its folder. The room compares one checksum over all of them plus the game version, the HalfGripTools version and the protocol number. A mismatch is refused with the list of what differs. Edit a mod and you are in a different room. The lobby shows `checksum` and the first 8 hex digits; the full list is in the log.
+- **Other players' cars** are copies of the game's enemy-car prefab: kinematic, moved towards the last received state with up to 0.25 s of extrapolation. Because they are enemies, the game's own gun rays, tire shots, blasts, rams and damage marks hit them unchanged.
+- **PvP damage.** The shooter's game finds the hit with the game's code, multiplies the damage by the host's setting and sends it to the owner, whose game applies it to the real car through `CarLink.TakeCrashDamage` (so Max HP, regeneration and wreck-saving items work). Ramming is handled by both games with the game's own crash damage. Defaults: guns, explosions and items 50%, ramming and AI guns 100%, tire shots on. The stock revolver does 35 per shot, so 17.5 per hit and six hits wreck 100 HP.
+- **AI rivals** are the host's real enemy cars; clients get stand-ins updated at 15 Hz. A client's hits on an AI car go to the host. AI gunfire at a player is simulated on that player's own game.
+- **Races** start through the garage's own start button (that is where the game applies your loadout), so the garage scene loads unseen behind a black screen. The track, weather and lap rules are the game's.
+- **Your save is not touched.** On entering a room (or the garage) the save tables are copied in memory and every write to disk and to Steam achievements is blocked. On leaving they are put back and the game's caches are dropped.
+
+**Limits:** other players' gunfire, rockets and tracers are not drawn on your screen, only what they do. Slow-Mo is off in a room. If the host leaves, the room closes. The AI cars run in the host's game, so if the host leaves the room closes. The AI KO count only knows about gun hits, not rams.
+
+Settings (`halfgrip.multiplayer.cfg`, also changed from the lobby and remembered): `GunDamage`, `ExplosionDamage`, `ItemDamage`, `RamDamage`, `AiGunDamage`, `TireShots`, and `Laps`, `AiRivals`, `WreckRule`, `RespawnSeconds` for new rooms.
+
+The mod also contains a test harness (`Rig*.cs`, the local backend in `Backend.cs`). It does nothing unless the game is started with `-mprig`; see `tools/mp-test.ps1`.
+
+Have fun.
 ## Settings, update, remove
 
 - Settings: each code mod writes `BepInEx\config\halfgrip.<mod id>.cfg` on first run, for example `halfgrip.sniperrifle.cfg`. Every entry has a comment. Edit with the game closed.
@@ -98,13 +137,13 @@ Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time
 
 ## Trust
 
-Mods are real C# and run with the game's permissions. Read them first. No mod here uses the network, starts a process, or writes a file or your save. Check:
+Mods are real C# and run with the game's permissions. Read them first. No mod here starts a process or writes your save. Only Multiplayer uses the network (Steam lobbies and Steam's peer-to-peer messages, through the Steam library the game already ships) and writes files (its loadout file, and test files in a folder you name when the game is started with `-mprig`). Check the others:
 
 ```powershell
-git grep -nE "HttpClient|WebRequest|WebClient|Net\.Sockets|Process\.Start|File\.(Write|Delete|Create|Copy|Move|Append)|SaveData\.Set|PlayerPrefs|DllImport|Application\.Quit" -- mods
+git grep -nE "HttpClient|WebRequest|WebClient|Net\.Sockets|Process\.Start|File\.(Write|Delete|Create|Copy|Move|Append)|SaveData\.Set|PlayerPrefs|DllImport|Application\.Quit" -- mods ':!mods/Multiplayer'
 ```
 
-Expected: no output. The only compiled code you run is HalfGripTools, see its [Trust](https://github.com/4l3x4nd3r0/HalfGripTools#trust) section for how to check it.
+Expected: no output. In Multiplayer the same search finds the Steam calls, the loadout file, the test harness, and `SaveData.Set` in its save sandbox (which writes only to memory; the game's `Save()` is blocked while a room is open). The only compiled code you run is HalfGripTools, see its [Trust](https://github.com/4l3x4nd3r0/HalfGripTools#trust) section for how to check it.
 
 ## Tools
 
@@ -117,6 +156,7 @@ You need the .NET 8 SDK and HalfGripTools installed in the game. All scripts tak
 .\tools\package.ps1 -Version 1.0.0        # release zip in release\
 .\tools\new-mod.ps1 MyMod                 # new mod folder from a template
 .\tools\redraw-art.ps1                    # redraw the pixel art (Python with Pillow)
+.\tools\mp-test.ps1 -Suite all            # run Multiplayer in real game copies, headless (see the script)
 ```
 
 How to write a mod: [WRITING_MODS.md](https://github.com/4l3x4nd3r0/HalfGripTools/blob/main/docs/WRITING_MODS.md) in the HalfGripTools repo.
