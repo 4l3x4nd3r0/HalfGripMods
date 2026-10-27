@@ -98,6 +98,11 @@ namespace Multiplayer
 		internal static bool SeriesOver { get { return SeriesRounds > 0 && Round >= SeriesRounds; } }
 
 		internal static bool restorePending;
+
+		// Set when the room is left from a race or the garage, until the main menu is up. In that window the race scene is still alive:
+		// the game's own race end must not run (no "-1 life" fade, no shop scene), so scene loads other than the menu are refused.
+		private static float leavingUntil;
+		internal static bool Leaving { get { return Time.realtimeSinceStartup < leavingUntil && !Flow.InMenu; } }
 		private static float helloDeadline;
 		private static float helloResend;
 		private static float loadDeadline;
@@ -527,7 +532,11 @@ namespace Multiplayer
 				// The race or garage scene is still alive for a moment while the menu loads, and the game keeps counting stats in it.
 				// The sandbox stays on until the menu is really there (see Tick).
 				restorePending = true;
+				leavingUntil = Time.realtimeSinceStartup + 20f;
 				Flow.GoToMenu();
+				// GoToMenu clears the race-end override; a race that ends on its own while the menu loads (the host had already crossed
+				// the line, say) would otherwise go through the game's own end: "-1 life" and the shop. Swallow it.
+				TrackManager.endRaceInstead = () => { };
 			}
 			else
 			{
