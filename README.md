@@ -7,6 +7,8 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | M1911 | Legendary semi-auto pistol | `giveitem a_light_in_shinning_darkness` |
 | RPG | Legendary rocket launcher, reloaded by hand | `giveitem rpg` |
 | SniperRifle | Legendary bolt-action rifle with scope and charge shot | `giveitem sniper_rifle` |
+| Railgun | Legendary railgun with six capacitors that charge while you drive with it raised, 10 to 90 damage | `giveitem railgun` |
+| Minigun | Legendary roof minigun aimed with a Wii-style remote, unlimited ammo limited by heat | `giveitem minigun` |
 | SpeedCharms | 3 passives for top speed and engine power. JSON only | `giveitem winners_grip`, `rabbits_foot`, `dragster_chute` |
 | DaciaBody | Dacia Logan rally body with its own 3D model | `giveitem dacia_body` |
 | BombRace | Race mode: stay above a speed or the bomb goes off | none, about 1 race in 10 |
@@ -14,7 +16,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | Highway | Race map built in code: two four-lane highways, one on a bridge over the other, dirt shortcuts, breakable roadside objects. In the run map pool | none, shows up as a map |
 | Multiplayer | Races for 2 to 6 players over Steam: host-run room, same mods required, PvP damage and AI rivals set by the host | none, the MULTIPLAYER button in the main menu |
 
-Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
+Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, Railgun, Minigun, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
 
 All mods are made for game version 0.418. On another version they still load, and the mod manager shows a warning sign next to them.
 
@@ -39,7 +41,7 @@ If you do not like running unknown software, the detailed steps are below, and t
 
 ```
 BepInEx\HalfGripMods\
-  M1911\  RPG\  SniperRifle\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  Multiplayer\
+  M1911\  RPG\  SniperRifle\  Railgun\  Minigun\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  Multiplayer\
 ```
 
 3. Start the game, quit, open `BepInEx\LogOutput.log`. Each mod that loaded has a line:
@@ -64,6 +66,12 @@ Drag a rocket from the rack to the front of the tube, it slides in tail first. O
 
 ### SniperRifle
 Pull the bolt back, drag a cartridge onto the open breech, push the bolt forward. Raise the rifle to aim: quick shot, 50 damage. Press Z to scope in (2.5x zoom, lens overlay, cockpit hidden). Z is listed in Settings > Controls under Looking, so you can rebind it there. Needs HalfGripTools 1.0.2. Scoped, the shot charges for 1.2 s: 50, 80 at half, 100 at full. 4 cartridges, each extra magazine adds 2. Settings: `Rounds`, `BaseDamage`, `HalfChargeDamage`, `FullChargeDamage`, `ChargeDelay`, `ChargeTime`, `Magnification`, `ZoomSpeed`, `ScopeOverlay`, `LaserDot`, `LowerAfterShot`.
+
+### Railgun
+Takes the pump shotgun's place: a scrap-built gauss gun with a rusty exhaust-pipe barrel, six ignition coils on a welded rack, a car battery strapped underneath with jumper cables, a hazard-striped receiver and a bent-pipe stock. The pump is an air pump with a pressure gauge on it. You load it one round at a time (4) and pump to chamber. While the gun is raised with a ball chambered it charges its six capacitors (the ignition coils on top). Driving at full speed fills all six in 2 seconds; standing still takes 5, and in between it follows your speed. Each capacitor is a level of charge and only a full one counts: a shot does 10 damage plus 13 for every loaded capacitor, 90 with all six. A capacitor fills slowly at first and in a rush at the end, and lights up from the bottom, with arcs jumping between the spark plugs and the gauge needle swinging over. A lamp on the receiver is green when a ball is chambered and red when it is not. It is drawn at the shotgun's own size, in the cockpit and in your hand, and pumping it throws no shells. Lower it and the charge drains on a clock at half that rate. The shot is a blue-white beam with a crack and a zap and a burst of sparks at the muzzle. A bar of six cells under the crosshair shows the capacitors. Legendary, cost 70. Settings: `MinDamage`, `MaxDamage`, `ChargeSeconds`, `StillChargeSeconds`, `FullSpeed`, `DrainShare`, `Cost`, `GunScale`, `HeldScale`, `ScreenBar`.
+
+### Minigun
+The SMG slot becomes a worn Wii-style remote: grab it and raise it to aim, hold fire for the barrels to spin up (0.4 s), then 20 bullets a second at 5 damage. The bullets leave from a minigun on the roof of the car. There is no ammo: a HEAT display across the dash fills and goes redder with every shot. It holds 3.9 s of fire (78 bullets, enough for three or four cars) and cools by itself in 20 s once you stop. The resting remote hangs on the roof lining between the mirror and the leaderboard, and the roof turret shows on the car in the garage too (solo and in a room), flying on and off with the slot. If it fills, the remote gets a padlock and cannot be picked up or fired for 60 s (120 s the second time in a race, and so on). An ammo box takes 1.3 s of heat off and 15 s off a running lock, or says "Ammo already full" when the gun is cold and unlocked. Legendary, cost 120. Settings: `Damage`, `RoundsPerSecond`, `Magazines`, `SecondsPerMagazine`, `CoolSeconds`, `OverheatPenalty`, `RepeatPenalty`, `BoxLockRelief`, `SpinUp`, `Cost`, `RemoteAuto`, `RemoteShift`, `DisplayShift`, `DisplayScale`, `HeldScale`, `RoofGun`.
 
 ### SpeedCharms
 Three passives, written as JSON in `mods/SpeedCharms/items`. Percentages scale the fitted engine, so they stack with engine upgrades. To change a number, edit the JSON.
