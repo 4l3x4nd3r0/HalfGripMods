@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $art = "$root\art"
-foreach ($script in "make_sprites", "make_rpg_sprites", "make_sniper_sprites", "make_bomb_sprites", "make_dacia_sprites", "make_speed_sprites", "make_highway_icon") {
+foreach ($script in "make_sprites", "make_rpg_sprites", "make_sniper_sprites", "make_bomb_sprites", "make_railgun_sprites", "make_minigun_sprites", "make_dacia_sprites", "make_speed_sprites", "make_highway_icon") {
 	python -I "$art\$script.py"
 	if ($LASTEXITCODE -ne 0) { throw "$script failed" }
 }
@@ -15,6 +15,8 @@ Put "m1911_*.png" "M1911"
 Put "rpg_*.png" "RPG" @("rpg_preview.png")
 Put "sniper_*.png" "SniperRifle" @("sniper_preview.png", "sniper_render.png")
 Put "bomb_*.png" "BombRace" @("bomb_preview.png")
+Put "railgun_*.png" "Railgun" @("railgun_preview.png")
+Put "minigun_*.png" "Minigun" @("minigun_preview.png")
 Put "dacia_icon.png" "DaciaBody"
 Put "highway_icon.png" "Highway"
 foreach ($stem in "glove", "rabbitfoot", "chute") { Put "${stem}_*.png" "SpeedCharms" }
