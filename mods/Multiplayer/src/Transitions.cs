@@ -14,6 +14,27 @@ namespace Multiplayer
 		}
 	}
 
+	// After leaving a room from a race, nothing but the menu may load (the race scene's own end would open the shop).
+	[HarmonyPatch(typeof(SceneLoader), nameof(SceneLoader.LoadSceneWithEffects))]
+	internal static class LeavingEffectsLoad
+	{
+		[HarmonyPriority(Priority.First)]
+		private static bool Prefix(string sceneName)
+		{
+			return !Room.Leaving || sceneName == Flow.MenuScene;
+		}
+	}
+
+	[HarmonyPatch(typeof(SceneLoader), nameof(SceneLoader.LoadScene), new[] { typeof(string) })]
+	internal static class LeavingPlainLoad
+	{
+		[HarmonyPriority(Priority.First)]
+		private static bool Prefix(string sceneName)
+		{
+			return !Room.Leaving || sceneName == Flow.MenuScene;
+		}
+	}
+
 	[HarmonyPatch(typeof(SceneLoader), nameof(SceneLoader.LoadSceneWithEffects))]
 	internal static class CoverEffectsLoad
 	{

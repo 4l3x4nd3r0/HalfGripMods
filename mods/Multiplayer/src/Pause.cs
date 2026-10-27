@@ -12,6 +12,13 @@ namespace Multiplayer
 	{
 		private static PauseController held;
 
+		// Closing the menu with Escape un-mutes the controls in the same frame, and the game's own pause check runs after this mod's
+		// Update: it would see the same Escape press, find the game unpaused, and open the menu again. So the mute is kept for the rest
+		// of that frame and let go of on the next one.
+		private static PauseController closing;
+
+		private static int closingFrame;
+
 		internal static bool Open { get { return (object)held != null; } }
 
 		/// <summary>Gives the controls back. Safe to call at any time, also after the pause menu's scene is gone.</summary>
@@ -22,11 +29,29 @@ namespace Multiplayer
 				GameInput.Mute(held, false); // works on a destroyed object too: the set compares references
 			}
 			held = null;
+			EndClosing();
+		}
+
+		private static void EndClosing()
+		{
+			if ((object)closing != null)
+			{
+				GameInput.Mute(closing, false);
+			}
+			closing = null;
 		}
 
 		/// <summary>Muted input also blocks the game's own Escape check, so Escape closes the menu from here.</summary>
 		internal static void Tick()
 		{
+			if ((object)closing != null && Time.frameCount != closingFrame)
+			{
+				EndClosing();
+			}
+			if (Chat.Typing)
+			{
+				return; // Escape belongs to the chat line while it is open
+			}
 			if ((object)held == null)
 			{
 				// a finished player's controls are let go of, which also blocks the game's own Escape: open the pause menu from here
@@ -51,8 +76,17 @@ namespace Multiplayer
 		{
 			if (paused)
 			{
+				EndClosing(); // a menu opened again in the frame after it was closed
 				held = pause;
 				GameInput.Mute(pause, true);
+			}
+			else if ((object)held != null)
+			{
+				// closed: the controls stay muted until the next frame (see above)
+				EndClosing();
+				closing = held;
+				closingFrame = Time.frameCount;
+				held = null;
 			}
 			else
 			{
@@ -166,7 +200,7 @@ namespace Multiplayer
 
 		private static bool Prefix()
 		{
-			if (!Room.Active)
+			if (!Room.Active && !Room.Leaving)
 			{
 				return true;
 			}
@@ -187,7 +221,7 @@ namespace Multiplayer
 
 		private static bool Prefix(ref System.Collections.IEnumerator __result)
 		{
-			if (!Room.Active)
+			if (!Room.Active && !Room.Leaving)
 			{
 				return true;
 			}
@@ -206,7 +240,7 @@ namespace Multiplayer
 	{
 		private static bool Prefix()
 		{
-			if (!Room.Active || RoomOutcome.Allow)
+			if (RoomOutcome.Allow || (!Room.Active && !Room.Leaving))
 			{
 				return true;
 			}

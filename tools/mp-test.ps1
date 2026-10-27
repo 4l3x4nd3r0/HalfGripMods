@@ -8,6 +8,7 @@
 #
 # Scenarios:
 #   race        two players race one lap with bots; finish order, results, back to the garage, save unchanged
+#   tournament  the same in TOURNAMENT mode (2 races): chat, ping and paint in the lobby, the other car wears the paint, the totals after race 1
 #   ai          the same with two AI rivals driven by the host
 #   combat      the host shoots the other player with the revolver until wrecked (damage numbers are checked), demolition mode, spectator camera
 #   respawn     the same with the respawn rule
@@ -30,7 +31,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
-if ($Suite -contains "all") { $Suite = @("idle", "unload", "maps", "race", "ai", "combat", "respawn", "hostquit", "clientquit", "mismatch", "trio", "highway", "random", "steam") }
+if ($Suite -contains "all") { $Suite = @("idle", "unload", "maps", "race", "tournament", "ai", "combat", "respawn", "hostquit", "clientquit", "mismatch", "trio", "highway", "random", "steam") }
 
 function Start-Rig([string]$Name, [string]$Scenario, [string]$Label, [string]$Out, [string[]]$Mods, [string]$More, [switch]$Tamper) {
 	$rig = Join-Path $Work "game\$Name"
@@ -85,6 +86,7 @@ foreach ($name in $Suite) {
 	switch ($name) {
 		"race"       { $mode = "race" }
 		"ai"         { $mode = "ai" }
+		"tournament" { $mode = "tournament" }
 		"combat"     { $mode = "combat"; $seconds = 360 }
 		"respawn"    { $mode = "respawn"; $seconds = 420 }
 		"hostquit"   { $mode = "hostquit" }

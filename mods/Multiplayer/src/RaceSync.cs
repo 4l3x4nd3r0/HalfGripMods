@@ -472,7 +472,16 @@ namespace Multiplayer
 			{
 				MakingHuman = false;
 			}
-			return RemoteCar.Make(ec.gameObject, peerId, ai, aiIndex);
+			RemoteCar made = RemoteCar.Make(ec.gameObject, peerId, ai, aiIndex);
+			if (!ai)
+			{
+				Peer owner = Room.Find(peerId);
+				if (owner != null)
+				{
+					Skins.Apply(made, owner.Skin); // paint chosen in the garage, as sent
+				}
+			}
+			return made;
 		}
 
 		// ------------------------------------------------------------------ per frame

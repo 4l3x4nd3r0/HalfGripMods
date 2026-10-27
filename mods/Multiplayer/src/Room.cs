@@ -38,6 +38,12 @@ namespace Multiplayer
 		internal int Kos;
 		internal int Wos;
 		internal float Score;
+		/// <summary>The paint of this player's car, <see cref="Skins"/>; "" when unknown.</summary>
+		internal string Skin = "";
+		/// <summary>Tournament: what the player has scored in the races so far.</summary>
+		internal float Total;
+		/// <summary>Round trip to the host in milliseconds, -1 until measured.</summary>
+		internal int PingMs = -1;
 
 		internal bool Local { get { return Id == Room.LocalId; } }
 	}
@@ -86,7 +92,17 @@ namespace Multiplayer
 		internal static float NoticeUntil;
 		internal static event Action Changed;
 
+		/// <summary>Tournament: races finished so far, and how many races the series was started with (0 = none going).</summary>
+		internal static int Round;
+		internal static int SeriesRounds;
+		internal static bool SeriesOver { get { return SeriesRounds > 0 && Round >= SeriesRounds; } }
+
 		internal static bool restorePending;
+
+		// Set when the room is left from a race or the garage, until the main menu is up. In that window the race scene is still alive:
+		// the game's own race end must not run (no "-1 life" fade, no shop scene), so scene loads other than the menu are refused.
+		private static float leavingUntil;
+		internal static bool Leaving { get { return Time.realtimeSinceStartup < leavingUntil && !Flow.InMenu; } }
 		private static float helloDeadline;
 		private static float helloResend;
 		private static float loadDeadline;
@@ -104,6 +120,54 @@ namespace Multiplayer
 		internal static bool AllReady { get { return Peers.Count > 0 && Peers.Where(p => p.Id != HostId).All(p => p.Ready); } }
 
 		internal static bool InRace { get { return Phase == Phase.Loading || Phase == Phase.Racing || Phase == Phase.Results; } }
+
+		/// <summary>The tournament line for the lobby and the results ("" outside a tournament).</summary>
+		internal static string SeriesText()
+		{
+			if (Settings.Mode != RaceSettings.ModeTournament)
+			{
+				return "";
+			}
+			if (SeriesRounds == 0 || SeriesOver || SeriesRounds != Settings.Rounds)
+			{
+				return Tx.F("TOURNAMENT: {0} RACES", Settings.Rounds);
+			}
+			return Tx.F("TOURNAMENT: RACE {0} OF {1}", Round + 1, SeriesRounds);
+		}
+
+		/// <summary>The player with the most points, or null.</summary>
+		internal static Peer SeriesLeader()
+		{
+			Peer best = null;
+			foreach (Peer p in Peers)
+			{
+				if (best == null || p.Total > best.Total)
+				{
+					best = p;
+				}
+			}
+			return best;
+		}
+
+		private static void StartSeries(int rounds)
+		{
+			Round = 0;
+			SeriesRounds = rounds;
+			foreach (Peer p in Peers)
+			{
+				p.Total = 0f;
+			}
+		}
+
+		private static void EndSeries()
+		{
+			Round = 0;
+			SeriesRounds = 0;
+			foreach (Peer p in Peers)
+			{
+				p.Total = 0f;
+			}
+		}
 
 		internal static void Notify()
 		{
@@ -452,6 +516,10 @@ namespace Multiplayer
 			IsHost = false;
 			Phase = Phase.None;
 			Peers.Clear();
+			Round = 0;
+			SeriesRounds = 0;
+			Chat.Clear();
+			Skins.Reset();
 			Busy = "";
 			Race = null;
 			GoReceived = false;
@@ -464,7 +532,11 @@ namespace Multiplayer
 				// The race or garage scene is still alive for a moment while the menu loads, and the game keeps counting stats in it.
 				// The sandbox stays on until the menu is really there (see Tick).
 				restorePending = true;
+				leavingUntil = Time.realtimeSinceStartup + 20f;
 				Flow.GoToMenu();
+				// GoToMenu clears the race-end override; a race that ends on its own while the menu loads (the host had already crossed
+				// the line, say) would otherwise go through the game's own end: "-1 life" and the shop. Swallow it.
+				TrackManager.endRaceInstead = () => { };
 			}
 			else
 			{
@@ -577,10 +649,11 @@ namespace Multiplayer
 			w.U8((int)Phase).Bool(Locked);
 			Settings.Write(w);
 			w.U64(HostId).Str(Code);
+			w.U8(Round).U8(SeriesRounds);
 			w.U8(Peers.Count);
 			foreach (Peer p in Peers)
 			{
-				w.U64(p.Id).Str(p.Name).Bool(p.Ready).Bool(p.Out).Bool(p.Finished);
+				w.U64(p.Id).Str(p.Name).Bool(p.Ready).Bool(p.Out).Bool(p.Finished).F32(p.Total).Str(p.Skin ?? "");
 			}
 		}
 
@@ -593,6 +666,7 @@ namespace Multiplayer
 			W w = new W(Msg.Roster);
 			WriteRoster(w);
 			SendAll(w);
+			Skins.Refresh();
 			Notify();
 		}
 
@@ -765,6 +839,54 @@ namespace Multiplayer
 					}
 					break;
 				case Msg.Ping:
+					// the sender's clock comes straight back, so the sender can read the round trip
+					SendTo(from, new W(Msg.Pong).F32(r.F32()), false);
+					break;
+				case Msg.Pong:
+					{
+						float rtt = Time.realtimeSinceStartup - r.F32();
+						if (rtt >= 0f && rtt < 10f)
+						{
+							Peer measured = IsHost ? sender : Me;
+							if (measured != null)
+							{
+								int ms = Mathf.RoundToInt(rtt * 1000f);
+								measured.PingMs = measured.PingMs < 0 ? ms : Mathf.RoundToInt(Mathf.Lerp(measured.PingMs, ms, 0.5f));
+							}
+						}
+					}
+					break;
+				case Msg.Pings:
+					if (fromHost && !IsHost)
+					{
+						int n = r.U8();
+						for (int i = 0; i < n && i < MaxPlayers; i++)
+						{
+							Peer p = Find(r.U64());
+							int ms = r.I32();
+							if (p != null && !p.Local)
+							{
+								p.PingMs = ms;
+							}
+						}
+					}
+					break;
+				case Msg.Chat:
+					if (sender != null)
+					{
+						Chat.Receive(sender, r.Str());
+					}
+					break;
+				case Msg.Skin:
+					if (IsHost && sender != null)
+					{
+						string skin = Skins.Sanitize(r.Str());
+						if (skin != sender.Skin)
+						{
+							sender.Skin = skin;
+							BroadcastRoster();
+						}
+					}
 					break;
 			}
 		}
@@ -840,6 +962,8 @@ namespace Multiplayer
 			RaceSettings settings = RaceSettings.Read(r);
 			ulong host = r.U64();
 			string code = r.Str();
+			int round = r.U8();
+			int seriesRounds = r.U8();
 			int count = r.U8();
 			List<Peer> fresh = new List<Peer>();
 			for (int i = 0; i < count && i < MaxPlayers; i++)
@@ -850,10 +974,14 @@ namespace Multiplayer
 				peer.Ready = r.Bool();
 				peer.Out = r.Bool();
 				peer.Finished = r.Bool();
+				peer.Total = r.F32();
+				peer.Skin = Skins.Sanitize(r.Str());
 				fresh.Add(peer);
 			}
 			HostId = host;
 			Code = code;
+			Round = round;
+			SeriesRounds = seriesRounds;
 			Locked = locked;
 			Settings = settings;
 			Peers.Clear();
@@ -875,6 +1003,7 @@ namespace Multiplayer
 			{
 				Mod.Log.LogInfo("Phase " + old + " -> " + Phase);
 			}
+			Skins.Refresh();
 			Notify();
 		}
 
@@ -933,6 +1062,14 @@ namespace Multiplayer
 			}
 			lastMap = s.Map;
 			Pvp.Save(s);
+			if (s.Mode != RaceSettings.ModeTournament)
+			{
+				EndSeries();
+			}
+			else if (SeriesRounds == 0 || SeriesOver || SeriesRounds != s.Rounds)
+			{
+				StartSeries(s.Rounds);
+			}
 			List<int> slots = Enumerable.Range(0, 6).OrderBy(i => random.Next()).ToList();
 			int humans = Peers.Count;
 			W w = new W(Msg.Start);
@@ -1280,7 +1417,23 @@ namespace Multiplayer
 				return;
 			}
 			PublishResults(true);
+			if (Race != null && Race.Mode == RaceSettings.ModeTournament)
+			{
+				// the tournament adds up each player's score of the race (a wrecked car scored nothing)
+				foreach (ResultLine line in Results)
+				{
+					Peer scorer = line.Ai ? null : Find(line.Id);
+					if (scorer != null)
+					{
+						scorer.Total += line.Score;
+					}
+				}
+				Round++;
+				Peer leader = SeriesLeader();
+				Mod.Log.LogInfo("Tournament race " + Round + " of " + SeriesRounds + " done: " + string.Join(", ", Peers.Select(p => p.Name + " " + Mathf.RoundToInt(p.Total)).ToArray()) + (SeriesOver && leader != null ? ". " + leader.Name + " wins." : ""));
+			}
 			ShowResults();
+			BroadcastRoster();
 		}
 
 		private static void OnResults(R r)
@@ -1410,7 +1563,7 @@ namespace Multiplayer
 						PublishResults(false);
 					}
 				}
-				if (Phase == Phase.Racing && firstFinishAt > 0f && now - firstFinishAt > 60f && Race != null && Race.Mode == RaceSettings.ModeRace)
+				if (Phase == Phase.Racing && firstFinishAt > 0f && now - firstFinishAt > 60f && Race != null && Race.RaceLike)
 				{
 					foreach (Peer p in Peers.Where(p => !p.Finished && !p.Out))
 					{
@@ -1427,19 +1580,26 @@ namespace Multiplayer
 					lastPing = now;
 					foreach (Peer p in Peers.Where(p => !p.Local).ToList())
 					{
-						SendTo(p.Id, new W(Msg.Ping));
+						SendTo(p.Id, new W(Msg.Ping).F32(now), false);
 						float heard;
 						if (lastHeard.TryGetValue(p.Id, out heard) && now - heard > 25f && Phase != Phase.Loading)
 						{
 							Kick(p.Id, "Lost contact with the host.");
 						}
 					}
+					W pings = new W(Msg.Pings).U8(Peers.Count);
+					foreach (Peer p in Peers)
+					{
+						pings.U64(p.Id).I32(p.Local ? 0 : p.PingMs);
+					}
+					SendAll(pings, false);
+					Notify();
 				}
 			}
 			else if (now - lastPing > 2f)
 			{
 				lastPing = now;
-				SendHost(new W(Msg.Ping));
+				SendHost(new W(Msg.Ping).F32(now), false);
 				float heard;
 				if (lastHeard.TryGetValue(HostId, out heard) && now - heard > 25f)
 				{

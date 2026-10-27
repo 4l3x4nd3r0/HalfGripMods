@@ -68,6 +68,16 @@ namespace Multiplayer
 		private TMP_Text startTip;
 		private readonly TMP_Text[] memberNames = new TMP_Text[Room.MaxPlayers];
 		private readonly TMP_Text[] memberTags = new TMP_Text[Room.MaxPlayers];
+		private readonly TMP_Text[] memberTotals = new TMP_Text[Room.MaxPlayers];
+		private readonly TMP_Text[] memberPings = new TMP_Text[Room.MaxPlayers];
+		private readonly Image[][] memberBars = new Image[Room.MaxPlayers][];
+		private readonly Image[][] memberPaint = new Image[Room.MaxPlayers][];
+		private RectTransform chatBox;
+		private ScrollRect chatScroll;
+		private TMP_Text chatLog;
+		private TMP_InputField chatField;
+		private TMP_Text resultsInfo;
+		private TMP_Text totalTitle;
 		private readonly GameObject[] memberRows = new GameObject[Room.MaxPlayers];
 		private readonly List<SettingRow> settingRows = new List<SettingRow>();
 
@@ -139,6 +149,7 @@ namespace Multiplayer
 			BuildFriends(root);
 			BuildSettings(root, headerTemplate);
 			BuildResults(root, headerTemplate);
+			BuildChat(inside);
 		}
 
 		/// <summary>Three equal columns on one grid: GARAGE, HOST ROOM, JOIN ROOM (with its code box above it).</summary>
@@ -164,6 +175,7 @@ namespace Multiplayer
 		// One grid for the room: four buttons along the bottom (their outer edges are the list's edges), the code up top.
 		private const float ButtonY = -340f;
 		private static readonly float[] ButtonX = { -570f, -190f, 190f, 570f };
+		private const float RowLeft = -428f; // the player bar's left edge; the chat ends at the right edge of LEAVE ROOM (-444)
 		private const float GridLeft = -696f;
 		private const float GridRight = 696f;
 
@@ -180,9 +192,10 @@ namespace Multiplayer
 			});
 			Badge(inside, "INVITE FRIENDS", new Vector2(220f, 285f), new Vector2(420f, 80f), () => ShowFriends(true));
 
-			// the players: from the left edge of the first button to just short of the last button's left edge, the host's button after that
-			const float rowWidth = 1092f;
-			float rowCentre = GridLeft + rowWidth / 2f;
+			// the players: a bar of their own between the chat (left) and the host's buttons (right). Left to right in a bar: the connection,
+			// the name, HOST / READY in the middle, the paint of the car, the tournament points.
+			const float rowWidth = 858f; // to the right edge of INVITE FRIENDS (430)
+			float rowCentre = RowLeft + rowWidth / 2f;
 			roomLine = Ui.Label(inside, "", 28f, Ui.Soft, TextAlignmentOptions.MidlineLeft, new Vector2(0.5f, 0.5f), new Vector2(rowCentre, 205f), new Vector2(rowWidth, 36f));
 			for (int i = 0; i < Room.MaxPlayers; i++)
 			{
@@ -191,19 +204,42 @@ namespace Multiplayer
 				RectTransform row = Ui.Box("Member " + i, inside, new Color(0.13f, 0.13f, 0.13f, 1f));
 				Ui.Anchor(row, new Vector2(0.5f, 0.5f), new Vector2(rowCentre, y), new Vector2(rowWidth, 56f));
 				memberRows[i] = row.gameObject;
-				memberNames[i] = Ui.Label(row, "", 38f, Color.white, TextAlignmentOptions.MidlineLeft, new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(700f, 52f));
-				memberTags[i] = Ui.Label(row, "", 28f, Ui.Amber, TextAlignmentOptions.MidlineRight, new Vector2(1f, 0.5f), new Vector2(-20f, 0f), new Vector2(300f, 52f));
-				// the host's buttons end where the last big button ends: LOCK ROOM by the host's own row, KICK by everybody else's
-				kickButtons[i] = Badge(inside, "KICK", new Vector2(GridRight - 140f, y), new Vector2(280f, 56f), () => KickRow(index));
+				memberBars[i] = new Image[4];
+				for (int k = 0; k < 4; k++)
+				{
+					float height = 10f + k * 8f;
+					RectTransform bar = Ui.Box("Signal " + k, row, Color.gray);
+					Ui.Anchor(bar, new Vector2(0f, 0f), new Vector2(14f + k * 11f, 11f), new Vector2(8f, height));
+					memberBars[i][k] = bar.GetComponent<Image>();
+					memberBars[i][k].raycastTarget = false;
+				}
+				memberPings[i] = Ui.Label(row, "", 28f, Ui.Soft, TextAlignmentOptions.MidlineLeft, new Vector2(0f, 0.5f), new Vector2(66f, 0f), new Vector2(90f, 52f));
+				memberNames[i] = Ui.Label(row, "", 38f, Color.white, TextAlignmentOptions.MidlineLeft, new Vector2(0f, 0.5f), new Vector2(165f, 0f), new Vector2(170f, 52f));
+				memberNames[i].enableAutoSizing = true;
+				memberNames[i].fontSizeMin = 18f;
+				memberNames[i].fontSizeMax = 38f;
+				memberNames[i].textWrappingMode = TextWrappingModes.NoWrap;
+				memberTags[i] = Ui.Label(row, "", 30f, Ui.Amber, TextAlignmentOptions.Center, new Vector2(0f, 0.5f), new Vector2(rowWidth / 2f - 110f, 0f), new Vector2(220f, 52f));
+				memberPaint[i] = new Image[3];
+				for (int k = 0; k < 3; k++)
+				{
+					RectTransform swatch = Ui.Box("Paint " + k, row, Color.white);
+					Ui.Anchor(swatch, new Vector2(0f, 0.5f), new Vector2(580f + k * 36f, 0f), new Vector2(28f, 28f));
+					memberPaint[i][k] = swatch.GetComponent<Image>();
+					memberPaint[i][k].raycastTarget = false;
+				}
+				memberTotals[i] = Ui.Label(row, "", 30f, Ui.Soft, TextAlignmentOptions.MidlineRight, new Vector2(0f, 0.5f), new Vector2(690f, 0f), new Vector2(160f, 52f));
+				// KICK and LOCK ROOM sit in line with the rows, after the bar, ending where START RACE ends
+				kickButtons[i] = Badge(inside, "KICK", new Vector2(568f, y), new Vector2(256f, 56f), () => KickRow(index));
 			}
-			lockButton = Badge(inside, "LOCK ROOM", new Vector2(GridRight - 140f, 150f), new Vector2(280f, 56f), () => Room.SetLocked(!Room.Locked));
+			lockButton = Badge(inside, "LOCK ROOM", new Vector2(568f, 150f), new Vector2(256f, 56f), () => Room.SetLocked(!Room.Locked));
 
 			// the buttons, left to right
 			leaveButton = Big(inside, "LEAVE ROOM", 6.5f, new Vector2(ButtonX[0], ButtonY), () => Back());
 			roomGarageButton = Big(inside, "GARAGE", 8.5f, new Vector2(ButtonX[1], ButtonY), () => Garage.EnterSolo());
 			// everybody can look at the race settings (only the host can change them)
 			settingsButton = Big(inside, "RACE SETTINGS", 6.5f, new Vector2(ButtonX[2], ButtonY), () => { showSettings = true; Refresh(); });
-			readyButton = Big(inside, "READY", 8.5f, new Vector2(ButtonX[3], ButtonY), () => Garage.OnStartButton());
+			readyButton = Big(inside, "READY", 7f, new Vector2(ButtonX[3], ButtonY), () => Garage.OnStartButton());
 			startButton = Big(inside, "START RACE", 7f, new Vector2(ButtonX[3], ButtonY), () => Room.StartRace());
 			startTip = Ui.Label(inside, "", 28f, Ui.Amber, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
 			HoverTip.Attach(startButton, startTip, () => Room.AllReady ? "" : "Not all players are ready.");
@@ -248,10 +284,11 @@ namespace Multiplayer
 			AddRow(view, 0, "MAP", () => Room.Settings.Map == RaceSettings.RandomMap ? "RANDOM" : Garage.MapLabel(Map()), () => CycleMap(-1), () => CycleMap(1));
 			AddRow(view, 0, "LAYOUT", () => VariantName(Room.Settings.Variant), () => CycleVariant(-1), () => CycleVariant(1), () => Garage.Variants(Map()).Count > 1);
 			AddRow(view, 0, "MODE", () => RaceSettings.ModeName(Room.Settings.Mode), () => ChangeMode(), () => ChangeMode());
-			AddRow(view, 0, "LAPS", () => Room.Settings.Laps.ToString(), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps - 1, 1, 10)), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps + 1, 1, 10)), () => Room.Settings.Mode == RaceSettings.ModeRace);
+			AddRow(view, 0, "RACES", () => Room.Settings.Rounds.ToString(), () => Edit(s => s.Rounds = RaceSettings.Clamp(s.Rounds - 1, 2, 10)), () => Edit(s => s.Rounds = RaceSettings.Clamp(s.Rounds + 1, 2, 10)), () => Room.Settings.Mode == RaceSettings.ModeTournament);
+			AddRow(view, 0, "LAPS", () => Room.Settings.Laps.ToString(), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps - 1, 1, 10)), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps + 1, 1, 10)), () => Room.Settings.RaceLike);
 			AddRow(view, 0, "AI RIVALS", () => Room.Settings.Ai.ToString(), () => Edit(s => s.Ai = RaceSettings.Clamp(s.Ai - 1, 0, 6 - Room.Peers.Count)), () => Edit(s => s.Ai = RaceSettings.Clamp(s.Ai + 1, 0, 6 - Room.Peers.Count)));
-			AddRow(view, 0, "WRECKED", () => Room.Settings.Mode == RaceSettings.ModeDemolition ? "OUT" : Room.Settings.Wreck == RaceSettings.WreckRespawn ? "RESPAWN" : "OUT, WATCH", () => Edit(s => s.Wreck = 1 - s.Wreck), () => Edit(s => s.Wreck = 1 - s.Wreck), () => Room.Settings.Mode == RaceSettings.ModeRace);
-			AddRow(view, 0, "RESPAWN IN", () => Room.Settings.RespawnSeconds.ToString("0") + " S", () => Edit(s => s.RespawnSeconds = RaceSettings.Clamp(s.RespawnSeconds - 1f, 2f, 30f)), () => Edit(s => s.RespawnSeconds = RaceSettings.Clamp(s.RespawnSeconds + 1f, 2f, 30f)), () => Room.Settings.Mode == RaceSettings.ModeRace && Room.Settings.Wreck == RaceSettings.WreckRespawn);
+			AddRow(view, 0, "WRECKED", () => Room.Settings.Mode == RaceSettings.ModeDemolition ? "OUT" : Room.Settings.Wreck == RaceSettings.WreckRespawn ? "RESPAWN" : "OUT, WATCH", () => Edit(s => s.Wreck = 1 - s.Wreck), () => Edit(s => s.Wreck = 1 - s.Wreck), () => Room.Settings.RaceLike);
+			AddRow(view, 0, "RESPAWN IN", () => Room.Settings.RespawnSeconds.ToString("0") + " S", () => Edit(s => s.RespawnSeconds = RaceSettings.Clamp(s.RespawnSeconds - 1f, 2f, 30f)), () => Edit(s => s.RespawnSeconds = RaceSettings.Clamp(s.RespawnSeconds + 1f, 2f, 30f)), () => Room.Settings.RaceLike && Room.Settings.Wreck == RaceSettings.WreckRespawn);
 
 			AddRow(view, 1, "GUNS", () => Percent(Room.Settings.Gun), () => Edit(s => s.Gun = Step(s.Gun, -0.1f)), () => Edit(s => s.Gun = Step(s.Gun, 0.1f)));
 			AddRow(view, 1, "EXPLOSIONS", () => Percent(Room.Settings.Explosion), () => Edit(s => s.Explosion = Step(s.Explosion, -0.1f)), () => Edit(s => s.Explosion = Step(s.Explosion, 0.1f)));
@@ -324,7 +361,8 @@ namespace Multiplayer
 
 		private static void ChangeMode()
 		{
-			Edit(s => s.Mode = s.Mode == RaceSettings.ModeRace ? RaceSettings.ModeDemolition : RaceSettings.ModeRace);
+			// RACE -> TOURNAMENT -> DEMOLITION -> RACE, the same order either arrow
+			Edit(s => s.Mode = s.Mode == RaceSettings.ModeRace ? RaceSettings.ModeTournament : s.Mode == RaceSettings.ModeTournament ? RaceSettings.ModeDemolition : RaceSettings.ModeRace);
 		}
 
 		/// <summary>The main-menu style red button: a copy of QUIT with its own text and action.</summary>
@@ -398,11 +436,11 @@ namespace Multiplayer
 		}
 
 		private static readonly Color Orange = new Color(1f, 0.55f, 0f, 1f);
-		private static readonly float[] ResultX = { -700f, -470f, -80f, 170f, 380f, 510f, 660f };
+		private static readonly float[] ResultX = { -700f, -470f, -80f, 170f, 380f, 510f, 660f, 830f };
 
 		private static float CellWidth(int column)
 		{
-			return column == 0 ? 80f : column == 1 ? 380f : column == 2 ? 200f : column == 3 ? 220f : column == 6 ? 170f : 100f;
+			return column == 0 ? 80f : column == 1 ? 380f : column == 2 ? 200f : column == 3 ? 220f : column == 6 ? 170f : column == 7 ? 150f : 100f;
 		}
 
 		/// <summary>After a race: one row per player with best lap, total time, kills (KOs) and wrecks (WOs).</summary>
@@ -414,12 +452,17 @@ namespace Multiplayer
 			GameObject header = Instantiate(headerTemplate, view, false);
 			header.name = "Header";
 			header.GetComponent<TMP_Text>().text = "RACE RESULTS";
-			string[] titles = { "", "PLAYER", "BEST LAP", "TOTAL TIME", "KOS", "WOS", "SCORE" };
+			string[] titles = { "", "PLAYER", "BEST LAP", "TOTAL TIME", "KOS", "WOS", "SCORE", "TOURNAMENT" };
 			for (int c = 1; c < titles.Length; c++)
 			{
 				TextAlignmentOptions align = c == 1 ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
-				Ui.Label(view, titles[c], 33f, Ui.Amber, align, new Vector2(0.5f, 0.5f), new Vector2(ResultX[c], 285f), new Vector2(CellWidth(c), 44f));
+				TMP_Text title = Ui.Label(view, titles[c], 33f, Ui.Amber, align, new Vector2(0.5f, 0.5f), new Vector2(ResultX[c], 285f), new Vector2(CellWidth(c), 44f));
+				if (c == 7)
+				{
+					totalTitle = title;
+				}
 			}
+			resultsInfo = Ui.Label(view, "", 33f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(0f, 340f), new Vector2(1400f, 44f));
 			for (int i = 0; i < Room.MaxPlayers; i++)
 			{
 				float y = 215f - i * 66f;
@@ -451,6 +494,10 @@ namespace Multiplayer
 
 		private void RefreshResults()
 		{
+			bool tournament = Room.Race != null && Room.Race.Mode == RaceSettings.ModeTournament;
+			totalTitle.gameObject.SetActive(tournament);
+			Peer leader = Room.SeriesLeader();
+			resultsInfo.text = !tournament ? "" : Room.SeriesOver && leader != null ? Tx.F("TOURNAMENT OVER: {0} WINS WITH {1}", leader.Name.ToUpperInvariant(), Mathf.RoundToInt(leader.Total)) : Tx.F("RACE {0} OF {1}", Math.Min(Room.Round + (Room.Phase == Phase.Results ? 0 : 1), Room.SeriesRounds), Room.SeriesRounds);
 			for (int i = 0; i < Room.MaxPlayers; i++)
 			{
 				bool has = i < Room.Results.Count && i < Room.MaxPlayers;
@@ -468,6 +515,10 @@ namespace Multiplayer
 				resultCells[i][5].text = line.Wos.ToString();
 				// the score follows the single-player rule (place payout, survival, kills, pick-ups); humans are orange, AI white
 				resultCells[i][6].text = Mathf.RoundToInt(line.Score).ToString();
+				// the tournament column: what the player had before this race plus its score (the race is already added once it is over)
+				Peer owner = line.Ai ? null : Room.Find(line.Id);
+				resultCells[i][7].text = tournament && owner != null ? Mathf.RoundToInt(owner.Total + (Room.Phase == Phase.Results ? 0f : line.Score)).ToString() : "";
+				resultRows[i].GetComponent<RectTransform>().sizeDelta = new Vector2(tournament ? 1800f : 1500f, 58f);
 				for (int c = 0; c < resultCells[i].Length; c++)
 				{
 					resultCells[i][c].color = line.Ai ? Color.white : Orange;
@@ -553,6 +604,100 @@ namespace Multiplayer
 			}
 		}
 
+		// ------------------------------------------------------------------ chat
+
+		private int chatEscapeFrame = -1;
+		private int chatOpenedFrame = -100;
+
+		/// <summary>
+		/// The lobby's chat: always open, the column under MULTIPLAYER down to the LEAVE ROOM button. The history above a line to type; the chat
+		/// key puts the cursor in the line, Enter sends, Escape lets go.
+		/// </summary>
+		private void BuildChat(Transform parent)
+		{
+			// no box of its own: the text sits on the menu's black like the rest, from the left edge to the right edge of LEAVE ROOM
+			chatBox = Ui.Box("ChatBox", parent, new Color(0f, 0f, 0f, 0f));
+			Ui.Anchor(chatBox, new Vector2(0.5f, 0.5f), new Vector2(-687f, 65f), new Vector2(486f, 640f));
+			Ui.Label(chatBox, "CHAT", 28f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0f, 1f), new Vector2(6f, -4f), new Vector2(300f, 34f));
+
+			RectTransform view = Ui.Box("Log", chatBox, new Color(0f, 0f, 0f, 0.004f)); // nearly clear, but it takes the mouse wheel
+			view.gameObject.AddComponent<RectMask2D>();
+			Ui.Anchor(view, new Vector2(0f, 0f), new Vector2(6f, 84f), new Vector2(452f, 510f));
+			chatLog = Ui.Label(view, "", 28f, Color.white, TextAlignmentOptions.TopLeft, new Vector2(0f, 1f), Vector2.zero, new Vector2(452f, 510f));
+			chatLog.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+			RectTransform track = Ui.Box("Scrollbar", chatBox, new Color(1f, 1f, 1f, 0.06f));
+			Ui.Anchor(track, new Vector2(0f, 0f), new Vector2(470f, 84f), new Vector2(8f, 510f));
+			RectTransform handle = Ui.Box("Handle", track, new Color(1f, 1f, 1f, 0.35f));
+			Ui.Stretch(handle, 0f);
+			Scrollbar bar = track.gameObject.AddComponent<Scrollbar>();
+			bar.handleRect = handle;
+			bar.targetGraphic = handle.GetComponent<Image>();
+			bar.direction = Scrollbar.Direction.BottomToTop;
+			chatScroll = view.gameObject.AddComponent<ScrollRect>();
+			chatScroll.content = chatLog.rectTransform;
+			chatScroll.viewport = view;
+			chatScroll.horizontal = false;
+			chatScroll.vertical = true;
+			chatScroll.movementType = ScrollRect.MovementType.Clamped;
+			chatScroll.scrollSensitivity = 30f;
+			chatScroll.verticalScrollbar = bar;
+			chatScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
+			chatField = Ui.Input(chatBox, "", new Vector2(0f, 0f), new Vector2(6f, 14f), new Vector2(472f, 58f), 30f, Chat.MaxLength);
+			// the key that opened the line must not type itself into it
+			chatField.onValidateInput = (text, index, c) => c == '<' || c == '>' || Time.frameCount <= chatOpenedFrame + 1 ? '\0' : c;
+			chatField.onSubmit.AddListener(s => SendChat());
+		}
+
+		private void SendChat()
+		{
+			string text = chatField.text;
+			chatField.text = "";
+			Chat.Send(text);
+			chatField.ActivateInputField();
+		}
+
+		/// <summary>Every frame in the room: the chat key, Escape, the history.</summary>
+		private void TickChat()
+		{
+			if (!inside.gameObject.activeInHierarchy || !Room.Active)
+			{
+				return;
+			}
+			TMP_Text hint = (TMP_Text)chatField.placeholder;
+			string want = Tx.F("Press {0} to chat", Mod.ChatKeyName());
+			if (hint.text != want)
+			{
+				hint.text = want;
+			}
+			bool focused = chatField.isFocused;
+			if (focused && Input.GetKeyDown(KeyCode.Escape))
+			{
+				chatEscapeFrame = Time.frameCount;
+				chatField.DeactivateInputField();
+			}
+			else if (!focused && Mod.ChatKey())
+			{
+				chatOpenedFrame = Time.frameCount;
+				chatField.text = "";
+				chatField.ActivateInputField();
+			}
+			string block = Chat.Block(60, false);
+			if (chatLog.text != block)
+			{
+				// follow the newest line unless the player has scrolled up to read
+				bool atBottom = chatScroll.verticalNormalizedPosition < 0.05f || chatLog.text.Length == 0;
+				chatLog.text = block;
+				if (atBottom)
+				{
+					Canvas.ForceUpdateCanvases();
+					chatScroll.verticalNormalizedPosition = 0f;
+				}
+			}
+			Chat.Unread = 0;
+		}
+
 		private static GameObject Holder(Button b)
 		{
 			Transform t = b.transform;
@@ -565,6 +710,10 @@ namespace Multiplayer
 
 		private void Back()
 		{
+			if (Time.frameCount == chatEscapeFrame)
+			{
+				return; // Escape on the chat line closes the chat, not the room
+			}
 			if (friendPanel.activeSelf)
 			{
 				ShowFriends(false);
@@ -595,6 +744,10 @@ namespace Multiplayer
 
 		private void Update()
 		{
+			if (chatBox != null)
+			{
+				TickChat();
+			}
 			Refresh();
 		}
 
@@ -654,7 +807,28 @@ namespace Multiplayer
 				if (has)
 				{
 					Peer p = Room.Peers[i];
-					memberNames[i].text = p.Name.ToUpperInvariant() + (p.Local ? " (YOU)" : "");
+					memberNames[i].text = p.Name.ToUpperInvariant() + (p.Local ? Tx.T(" (YOU)") : "");
+					Color[] paint = Skins.Colours(p.Skin);
+					for (int k = 0; k < 3; k++)
+					{
+						memberPaint[i][k].gameObject.SetActive(paint != null);
+						if (paint != null)
+						{
+							memberPaint[i][k].color = paint[k];
+						}
+					}
+					bool series = Room.Settings.Mode == RaceSettings.ModeTournament && Room.SeriesRounds > 0 && Room.SeriesRounds == Room.Settings.Rounds;
+					memberTotals[i].text = series ? Tx.F("{0} PTS", Mathf.RoundToInt(p.Total)) : "";
+					// the ping each player has to the host; the host is its own end of the line
+					int ms = p.Id == Room.HostId ? 0 : p.PingMs;
+					int lit = ms < 0 ? 0 : ms < 50 ? 4 : ms < 100 ? 3 : ms < 170 ? 2 : 1;
+					Color tone = lit >= 3 ? Ui.Green : lit == 2 ? Ui.Amber : Ui.Red;
+					for (int k = 0; k < 4; k++)
+					{
+						memberBars[i][k].color = k < lit ? tone : new Color(0.28f, 0.28f, 0.3f, 1f);
+					}
+					memberPings[i].text = ms < 0 ? "-" : ms + " ms";
+					memberPings[i].color = ms < 0 ? Ui.Soft : tone;
 					if (p.Id == Room.HostId)
 					{
 						memberTags[i].text = "HOST";
@@ -667,7 +841,9 @@ namespace Multiplayer
 					}
 				}
 			}
-			roomLine.text = "PLAYERS " + Room.Peers.Count + " / " + Room.MaxPlayers;
+			string players = Tx.F("PLAYERS {0} / {1}", Room.Peers.Count, Room.MaxPlayers);
+			string seriesLine = Room.SeriesText();
+			roomLine.text = seriesLine.Length > 0 ? players + "     " + seriesLine : players;
 			lockIcon.gameObject.SetActive(Room.Locked);
 			Holder(lockButton).SetActive(Room.IsHost);
 			Ui.SetText(lockButton, Room.Locked ? "UNLOCK ROOM" : "LOCK ROOM");

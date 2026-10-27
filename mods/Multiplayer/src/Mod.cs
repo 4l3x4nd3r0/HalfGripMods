@@ -11,6 +11,10 @@ namespace Multiplayer
 		internal static ModContext Ctx;
 		/// <summary>True on the frame the spectate key (Tab, rebindable in Settings > Controls) goes down.</summary>
 		internal static System.Func<bool> SpectateNext = () => Input.GetKeyDown(KeyCode.Tab);
+		/// <summary>True on the frame the chat key (H by default, rebindable in Settings > Controls > Multiplayer) goes down.</summary>
+		internal static System.Func<bool> ChatKey = () => Input.GetKeyDown(KeyCode.H);
+		internal const string ChatLabel = "Chat";
+		internal static string ChatKeyName() { return ModKeyShim.NameOf(ChatLabel, "H"); }
 
 		public override void Load(ModContext ctx)
 		{
@@ -21,7 +25,10 @@ namespace Multiplayer
 				Log.LogError("Multiplayer needs HalfGripTools 1.0.2 or newer (this one is older), so it is not loaded. Update HalfGripTools.");
 				return;
 			}
-			SpectateNext = ModKeyShim.Add(ctx, KeyCode.Tab, "Spectate: next car (Multiplayer)", Controls.Section.Race);
+			// both keys have their own "Multiplayer" mini section in Settings > Controls (the Race section if the game's list cannot be extended)
+			Controls.Section keySection = KeySection.Supported ? KeySection.Own : Controls.Section.Race;
+			SpectateNext = ModKeyShim.Add(ctx, KeyCode.Tab, "Spectate: next car", keySection);
+			ChatKey = ModKeyShim.Add(ctx, KeyCode.H, ChatLabel, keySection);
 			Pvp.Bind(ctx.Config);
 			Rig.Init();
 			if (Rig.On)
@@ -29,6 +36,7 @@ namespace Multiplayer
 				SaveSandbox.ReadOnly = true; // a test copy of the game must never write the real save
 			}
 			ctx.PatchAll();
+			Tx.Merge(Loc.Language); // the game may have built its text table before this patch existed
 			runner = new GameObject("MultiplayerRunner");
 			Object.DontDestroyOnLoad(runner);
 			runner.AddComponent<Runner>();
@@ -44,6 +52,7 @@ namespace Multiplayer
 			Hud.Remove();
 			RaceSync.Remove();
 			Cues.Remove();
+			Chat.Remove();
 			SaveSandbox.Leave();
 			Restore.AfterRoom();
 			if (runner != null)
@@ -62,7 +71,7 @@ namespace Multiplayer
 			{
 				MenuHook.Tick();
 				Room.Tick();
-				RaceSync.Tick(); Pause.Tick(); Garage.Tick(); Cover.Tick();
+				RaceSync.Tick(); Pause.Tick(); Chat.Tick(); Skins.Tick(); Garage.Tick(); Cover.Tick();
 			}
 			catch (System.Exception e)
 			{

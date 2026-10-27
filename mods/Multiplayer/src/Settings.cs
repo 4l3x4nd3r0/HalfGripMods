@@ -9,6 +9,7 @@ namespace Multiplayer
 	{
 		internal const int ModeRace = 0;
 		internal const int ModeDemolition = 1;
+		internal const int ModeTournament = 2;
 		internal const int WreckSpectate = 0;
 		internal const int WreckRespawn = 1;
 
@@ -19,6 +20,8 @@ namespace Multiplayer
 		internal int Variant;
 		internal int Laps = 3;
 		internal int Mode = ModeRace;
+		/// <summary>Races in a tournament, the mode that adds up the score of every race.</summary>
+		internal int Rounds = 3;
 		internal int Ai;
 		internal int Wreck = WreckSpectate;
 		internal float RespawnSeconds = 5f;
@@ -33,8 +36,11 @@ namespace Multiplayer
 
 		internal static string ModeName(int mode)
 		{
-			return mode == ModeDemolition ? "DEMOLITION" : "RACE";
+			return mode == ModeDemolition ? "DEMOLITION" : mode == ModeTournament ? "TOURNAMENT" : "RACE";
 		}
+
+		/// <summary>A tournament is a series of ordinary races: laps, finishing order and the wreck rule all apply.</summary>
+		internal bool RaceLike { get { return Mode != ModeDemolition; } }
 
 		internal RaceSettings Copy()
 		{
@@ -43,7 +49,7 @@ namespace Multiplayer
 
 		internal void Write(W w)
 		{
-			w.Str(Map).I32(Variant).I32(Laps).U8(Mode).U8(Ai).U8(Wreck).F32(RespawnSeconds);
+			w.Str(Map).I32(Variant).I32(Laps).U8(Mode).U8(Rounds).U8(Ai).U8(Wreck).F32(RespawnSeconds);
 			w.F32(Gun).F32(Explosion).F32(Item).F32(Ram).F32(AiGun).Bool(Tires);
 		}
 
@@ -53,7 +59,9 @@ namespace Multiplayer
 			s.Map = r.Str();
 			s.Variant = r.I32();
 			s.Laps = Clamp(r.I32(), 1, 20);
-			s.Mode = r.U8() == ModeDemolition ? ModeDemolition : ModeRace;
+			int mode = r.U8();
+			s.Mode = mode == ModeDemolition ? ModeDemolition : mode == ModeTournament ? ModeTournament : ModeRace;
+			s.Rounds = Clamp(r.U8(), 2, 10);
 			s.Ai = Clamp(r.U8(), 0, 5);
 			s.Wreck = r.U8() == WreckRespawn ? WreckRespawn : WreckSpectate;
 			s.RespawnSeconds = Clamp(r.F32(), 1f, 60f);
@@ -83,6 +91,7 @@ namespace Multiplayer
 		private static ConfigEntry<float> aiGun;
 		private static ConfigEntry<bool> tires;
 		private static ConfigEntry<int> laps;
+		private static ConfigEntry<int> rounds;
 		private static ConfigEntry<int> ai;
 		private static ConfigEntry<int> wreck;
 		private static ConfigEntry<float> respawn;
@@ -96,6 +105,7 @@ namespace Multiplayer
 			aiGun = config.Bind("PvP", "AiGunDamage", 1f, "Damage the AI rivals' guns do to a player. 1 = the game's normal.");
 			tires = config.Bind("PvP", "TireShots", true, "Whether shooting a tire of another player's car punctures it.");
 			laps = config.Bind("Room", "Laps", 3, "Laps of a race, as the host.");
+			rounds = config.Bind("Room", "TournamentRounds", 3, "Races in a tournament, 2 to 10, as the host.");
 			ai = config.Bind("Room", "AiRivals", 0, "AI rivals to fill the grid with, 0 to 5, as the host.");
 			wreck = config.Bind("Room", "WreckRule", 0, "0 = a wrecked player is out and watches, 1 = respawns after a delay. As the host.");
 			respawn = config.Bind("Room", "RespawnSeconds", 5f, "Seconds until a wrecked player respawns, when the wreck rule is 1.");
@@ -112,6 +122,7 @@ namespace Multiplayer
 			s.AiGun = aiGun.Value;
 			s.Tires = tires.Value;
 			s.Laps = laps.Value;
+			s.Rounds = RaceSettings.Clamp(rounds.Value, 2, 10);
 			s.Ai = RaceSettings.Clamp(ai.Value, 0, 5);
 			s.Wreck = wreck.Value == RaceSettings.WreckRespawn ? RaceSettings.WreckRespawn : RaceSettings.WreckSpectate;
 			s.RespawnSeconds = respawn.Value;
@@ -158,6 +169,7 @@ namespace Multiplayer
 			aiGun.Value = s.AiGun;
 			tires.Value = s.Tires;
 			laps.Value = s.Laps;
+			rounds.Value = s.Rounds;
 			ai.Value = s.Ai;
 			wreck.Value = s.Wreck;
 			respawn.Value = s.RespawnSeconds;

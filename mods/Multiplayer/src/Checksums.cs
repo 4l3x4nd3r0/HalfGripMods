@@ -18,7 +18,7 @@ namespace Multiplayer
 	/// </summary>
 	internal static class Checksums
 	{
-		internal const int Protocol = 6;
+		internal const int Protocol = 7;
 
 		internal sealed class ModSum
 		{
@@ -120,6 +120,8 @@ namespace Multiplayer
 				string root = Path.GetFullPath(folder);
 				string[] files = Directory.GetFiles(root, "*", SearchOption.AllDirectories);
 				List<string> relative = files.Select(f => f.Substring(root.Length).TrimStart('\\', '/').Replace('\\', '/')).ToList();
+				// translations only change what one player reads, so a lang/ folder must not put anybody in another room
+				relative.RemoveAll(p => p.StartsWith("lang/", StringComparison.OrdinalIgnoreCase));
 				relative.Sort(string.CompareOrdinal);
 				foreach (string path in relative)
 				{

@@ -97,6 +97,21 @@ namespace Multiplayer
 		}
 	}
 
+	/// <summary>Continue must never open the shop without a real run (it opened a broken, empty one after leaving the multiplayer garage).</summary>
+	[HarmonyPatch(typeof(MainMenu), "Continue")]
+	internal static class ContinuePatch
+	{
+		private static bool Prefix()
+		{
+			if (Restore.CanContinue() || (!SaveSandbox.Blocking && RunState.Load() && !RunState.Over))
+			{
+				return true;
+			}
+			Restore.RefreshContinue();
+			return false;
+		}
+	}
+
 	/// <summary>Puts the game's in-memory state back after a room: the save tables are restored by the sandbox, but a few statics cache what they held.</summary>
 	internal static class Restore
 	{
@@ -121,10 +136,35 @@ namespace Multiplayer
 				Traverse.Create(typeof(RunState)).Property("Map").SetValue(null);
 				GameManager.inventoryUpgrades.Clear();
 				GameManager.equippedUpgrades.Clear();
+				// The menu built its Continue button while the stand-in run was still in memory, so it was lit even with no real run.
+				// Read the real run back from the restored save (false when there is none) and set the button from that.
+				RunState.Load();
+				RefreshContinue();
 			}
 			catch (Exception e)
 			{
 				Mod.Log.LogWarning("Restoring the game's state after the room: " + e.Message);
+			}
+		}
+
+		/// <summary>True when Continue has a real run to open.</summary>
+		internal static bool CanContinue()
+		{
+			return !SaveSandbox.Blocking && RunState.Active && !RunState.Over;
+		}
+
+		/// <summary>Sets the live menu's Continue button from what is really in memory.</summary>
+		internal static void RefreshContinue()
+		{
+			MainMenu menu = UnityEngine.Object.FindFirstObjectByType<MainMenu>();
+			if (menu == null)
+			{
+				return;
+			}
+			var button = Traverse.Create(menu).Field("continueButton").GetValue<UnityEngine.UI.Button>();
+			if (button != null)
+			{
+				button.interactable = CanContinue();
 			}
 		}
 

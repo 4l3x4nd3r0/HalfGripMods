@@ -1,9 +1,9 @@
 {
   "id": "multiplayer",
   "name": "Multiplayer",
-  "version": "0.9.1",
+  "version": "0.10.2",
   "author": "4l3x4nd3r",
-  "description": "Versus races over Steam for up to 6 players: a room code or a Steam invite, everybody on the same mods, PvP damage set by the host.",
+  "description": "Versus races over Steam for up to 6 players: a room code or a Steam invite, everybody on the same mods, PvP damage set by the host, chat, ping, tournaments and your own paint on your car.",
   "gameVersion": "0.418",
   "tools": "1.0.2"
 }

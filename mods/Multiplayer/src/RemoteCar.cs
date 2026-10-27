@@ -51,6 +51,18 @@ namespace Multiplayer
 			return peer != null ? peer.Name : "Player";
 		}
 
+		/// <summary>What floats over the car: the name and, for a player, the connection's ping on a second line.</summary>
+		internal string TagText()
+		{
+			string name = DisplayName();
+			if (IsAi)
+			{
+				return name;
+			}
+			Peer peer = Room.Find(PeerId);
+			return peer != null && peer.PingMs > 0 && !peer.Local ? name + "\n" + peer.PingMs + " ms" : name;
+		}
+
 		internal Vector3 Position { get { return Body != null ? Body.position : transform.position; } }
 
 		internal Vector3 Velocity { get { return velocity; } }
@@ -75,7 +87,7 @@ namespace Multiplayer
 			}
 			rc.position = car.transform.position;
 			rc.rotation = car.transform.rotation;
-			NameTag.Attach(car, rc.DisplayName, !ai);
+			NameTag.Attach(car, rc.TagText, !ai);
 			return rc;
 		}
 
