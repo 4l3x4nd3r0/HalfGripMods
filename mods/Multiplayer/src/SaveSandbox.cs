@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using HarmonyLib;
 
@@ -18,6 +19,7 @@ namespace Multiplayer
 		private static Dictionary<string, string> strings;
 		private static bool dirtySave;
 		private static bool dirtyHistory;
+		private static bool copied;
 
 		private static readonly Func<string, bool> IsSetting = (Func<string, bool>)Delegate.CreateDelegate(typeof(Func<string, bool>), AccessTools.Method(typeof(SaveData), "IsSetting"));
 
@@ -37,6 +39,7 @@ namespace Multiplayer
 			}
 			LifetimeStats.Flush(); // totals waiting to be written belong to the real save, so they go in before the copy is taken
 			SaveData.GetInt("multiplayer.sandbox"); // makes the game read its files now, so the copy is of the real save
+			KeepFileCopy();
 			ints = new Dictionary<string, int>(Table<int>("ints"));
 			floats = new Dictionary<string, float>(Table<float>("floats"));
 			strings = new Dictionary<string, string>(Table<string>("strings"));
@@ -44,6 +47,34 @@ namespace Multiplayer
 			dirtyHistory = Flag("dirtyHistory");
 			Active = true;
 			Mod.Log.LogInfo("Save sandbox on: nothing reaches the save or Steam achievements until you leave multiplayer.");
+		}
+
+		/// <summary>
+		/// A copy of save.json next to it, once per game session, so a player whose save goes missing for any reason can get it back.
+		/// An empty or unreadable save is never copied over a good copy.
+		/// </summary>
+		private static void KeepFileCopy()
+		{
+			try
+			{
+				if (SaveData.SaveUnreadable || Table<int>("ints").Count == 0)
+				{
+					Mod.Log.LogWarning("Save sandbox: the save was already empty or unreadable when the room started; no copy made.");
+					return;
+				}
+				if (copied || !File.Exists(SaveData.FilePath) || new FileInfo(SaveData.FilePath).Length < 100)
+				{
+					return;
+				}
+				string target = SaveData.FilePath + ".multiplayer-backup";
+				File.Copy(SaveData.FilePath, target, true);
+				copied = true;
+				Mod.Log.LogInfo("Save sandbox: copy of the save kept as " + target);
+			}
+			catch (Exception e)
+			{
+				Mod.Log.LogWarning("Save sandbox: could not copy the save file: " + e.Message);
+			}
 		}
 
 		internal static void Leave()
@@ -107,6 +138,21 @@ namespace Multiplayer
 	internal static class SkipBackup
 	{
 		private static bool Prefix() => !SaveSandbox.Blocking;
+	}
+
+	// A stand-in run starts through Speedrun.BeginRun -> RestoreBackup, which deletes save.speedrun.json from disk; that file belongs to the real save.
+	[HarmonyPatch(typeof(SaveData), nameof(SaveData.RestoreBackup))]
+	internal static class SkipRestoreBackup
+	{
+		private static bool Prefix(ref bool __result)
+		{
+			if (!SaveSandbox.Blocking)
+			{
+				return true;
+			}
+			__result = false;
+			return false;
+		}
 	}
 
 	[HarmonyPatch(typeof(SteamAchievements), nameof(SteamAchievements.Unlock))]
