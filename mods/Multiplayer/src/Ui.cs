@@ -197,9 +197,51 @@ namespace Multiplayer
 			field.characterLimit = maxLength;
 			field.lineType = TMP_InputField.LineType.SingleLine;
 			field.onFocusSelectAll = false;
-			field.onSelect.AddListener(s => GameInput.Mute(field, true));
-			field.onDeselect.AddListener(s => GameInput.Mute(field, false));
+			fields.Add(field);
 			return field;
+		}
+
+		private static readonly System.Collections.Generic.List<TMP_InputField> fields = new System.Collections.Generic.List<TMP_InputField>();
+		private static readonly System.Collections.Generic.HashSet<TMP_InputField> muted = new System.Collections.Generic.HashSet<TMP_InputField>();
+
+		/// <summary>
+		/// Every frame: the game's controls are muted while one of our text boxes has focus and not a moment longer. Done by polling because an
+		/// <c>onDeselect</c> never fires when the box's scene is destroyed while it is selected (the joiner's controls stayed muted for the whole session).
+		/// </summary>
+		internal static void TickInputs()
+		{
+			for (int i = fields.Count - 1; i >= 0; i--)
+			{
+				TMP_InputField field = fields[i];
+				if (field == null)
+				{
+					fields.RemoveAt(i);
+					if (muted.Remove(field))
+					{
+						GameInput.Mute(field, false); // works on a destroyed object too: the set compares references
+					}
+					continue;
+				}
+				bool want = field.isActiveAndEnabled && field.isFocused;
+				if (want && muted.Add(field))
+				{
+					GameInput.Mute(field, true);
+				}
+				else if (!want && muted.Remove(field))
+				{
+					GameInput.Mute(field, false);
+				}
+			}
+		}
+
+		/// <summary>Lets go of every mute a text box holds (leaving a room, a race starting, the mod unloading).</summary>
+		internal static void ReleaseInputs()
+		{
+			foreach (TMP_InputField field in muted)
+			{
+				GameInput.Mute(field, false);
+			}
+			muted.Clear();
 		}
 
 		internal static void Clear(Transform parent)

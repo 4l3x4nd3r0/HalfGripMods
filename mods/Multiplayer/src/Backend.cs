@@ -99,6 +99,7 @@ namespace Multiplayer
 			}
 			SteamNetworking.AllowP2PPacketRelay(true);
 			SteamNetworking.OnP2PSessionRequest = OnSessionRequest;
+			SteamNetworking.OnP2PConnectionFailed = OnConnectionFailed;
 			SteamMatchmaking.OnLobbyMemberJoined += OnJoined;
 			SteamMatchmaking.OnLobbyMemberLeave += OnLeft;
 			SteamMatchmaking.OnLobbyMemberDisconnected += OnLeft;
@@ -119,15 +120,39 @@ namespace Multiplayer
 			{
 				SteamNetworking.OnP2PSessionRequest = null;
 			}
+			if (SteamNetworking.OnP2PConnectionFailed == (Action<SteamId, P2PSessionError>)OnConnectionFailed)
+			{
+				SteamNetworking.OnP2PConnectionFailed = null;
+			}
 		}
+
+		// People who asked for a P2P session before Steam listed them as lobby members (the join and the first packet cross on the wire):
+		// kept for a few seconds and accepted by Tick once they are in the list, instead of being refused for good.
+		private readonly Dictionary<ulong, float> waitingSessions = new Dictionary<ulong, float>();
+		private readonly HashSet<ulong> failedSends = new HashSet<ulong>();
 
 		private void OnSessionRequest(SteamId id)
 		{
 			// Only people in the room we are in may talk to us.
 			if (lobby.HasValue && Members().Contains(id.Value))
 			{
+				Mod.Log.LogInfo("P2P session with " + id.Value + " accepted.");
 				SteamNetworking.AcceptP2PSessionWithUser(id);
 			}
+			else if (lobby.HasValue)
+			{
+				Mod.Log.LogInfo("P2P session request from " + id.Value + ", who is not in the room's member list yet: waiting for Steam to list them.");
+				waitingSessions[id.Value] = Time.realtimeSinceStartup + 15f;
+			}
+			else
+			{
+				Mod.Log.LogInfo("P2P session request from " + id.Value + " ignored: not in a room.");
+			}
+		}
+
+		private void OnConnectionFailed(SteamId id, P2PSessionError error)
+		{
+			Mod.Log.LogWarning("P2P connection to " + id.Value + " failed: " + error);
 		}
 
 		private void OnJoined(Lobby l, Friend f)
@@ -260,6 +285,8 @@ namespace Multiplayer
 			}
 			lobby = null;
 			known.Clear();
+			waitingSessions.Clear();
+			failedSends.Clear();
 		}
 
 		internal override void SetRoomData(string key, string value)
@@ -314,7 +341,11 @@ namespace Multiplayer
 			{
 				return;
 			}
-			SteamNetworking.SendP2PPacket(new SteamId { Value = to }, data, data.Length, 0, reliable ? P2PSend.Reliable : P2PSend.UnreliableNoDelay);
+			bool sent = SteamNetworking.SendP2PPacket(new SteamId { Value = to }, data, data.Length, 0, reliable ? P2PSend.Reliable : P2PSend.UnreliableNoDelay);
+			if (!sent && failedSends.Add(to))
+			{
+				Mod.Log.LogWarning("Steam would not send a packet to " + to + " (logged once per player).");
+			}
 		}
 
 		internal override bool Receive(out ulong from, out byte[] data)
@@ -338,6 +369,25 @@ namespace Multiplayer
 				return;
 			}
 			SteamIdentity.Pump();
+			if (waitingSessions.Count > 0)
+			{
+				float now = Time.realtimeSinceStartup;
+				List<ulong> members = lobby.HasValue ? Members() : new List<ulong>();
+				foreach (ulong id in waitingSessions.Keys.ToList())
+				{
+					if (members.Contains(id))
+					{
+						Mod.Log.LogInfo("P2P session with " + id + " accepted (now in the member list).");
+						SteamNetworking.AcceptP2PSessionWithUser(new SteamId { Value = id });
+						waitingSessions.Remove(id);
+					}
+					else if (now > waitingSessions[id] || !lobby.HasValue)
+					{
+						Mod.Log.LogWarning("P2P session request from " + id + " dropped: never appeared in the member list.");
+						waitingSessions.Remove(id);
+					}
+				}
+			}
 			for (int i = pending.Count - 1; i >= 0; i--)
 			{
 				if (pending[i]())
