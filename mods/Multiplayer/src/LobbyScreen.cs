@@ -167,8 +167,8 @@ namespace Multiplayer
 			((TMP_Text)codeField.placeholder).alignment = TextAlignmentOptions.Center;
 			codeField.characterValidation = TMP_InputField.CharacterValidation.None;
 			codeField.onValidateInput = (text, index, c) => char.IsLetterOrDigit(c) ? char.ToUpperInvariant(c) : '\0';
-			codeField.onSubmit.AddListener(s => Room.JoinCode(s));
-			joinButton = Big(home, "JOIN ROOM", 8.5f, new Vector2(right, 20f), () => Room.JoinCode(codeField.text));
+			codeField.onSubmit.AddListener(s => { codeField.DeactivateInputField(); Room.JoinCode(s); });
+			joinButton = Big(home, "JOIN ROOM", 8.5f, new Vector2(right, 20f), () => { codeField.DeactivateInputField(); Room.JoinCode(codeField.text); });
 			Ui.Label(home, "Type or paste the code you were given.", 28f, Ui.Soft, TextAlignmentOptions.Top, new Vector2(0.5f, 0.5f), new Vector2(right, -120f), new Vector2(440f, 110f));
 		}
 
@@ -661,8 +661,12 @@ namespace Multiplayer
 		/// <summary>Every frame in the room: the chat key, Escape, the history.</summary>
 		private void TickChat()
 		{
-			if (!inside.gameObject.activeInHierarchy || !Room.Active)
+			if (!inside.gameObject.activeInHierarchy || !Room.Active || Room.Phase != Phase.Lobby)
 			{
+				if (chatField.isFocused)
+				{
+					chatField.DeactivateInputField(); // the room view is going away (race starting, leaving): let go of the line and the controls
+				}
 				return;
 			}
 			TMP_Text hint = (TMP_Text)chatField.placeholder;

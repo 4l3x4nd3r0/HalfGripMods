@@ -105,6 +105,9 @@ namespace Multiplayer
 		internal static bool Leaving { get { return Time.realtimeSinceStartup < leavingUntil && !Flow.InMenu; } }
 		private static float helloDeadline;
 		private static float helloResend;
+		private static int helloCount;
+		private static int heardFromHost;
+		internal static string ToolsVersion { get { return typeof(HalfGripTools.HalfGripMod).Assembly.GetName().Version.ToString(); } }
 		private static float loadDeadline;
 		internal static float resultsAt;
 		private static float firstFinishAt;
@@ -277,6 +280,7 @@ namespace Multiplayer
 				B.SetRoomData("hg_sum", Checksums.Combined);
 				B.SetRoomData("hg_mods", Checksums.ModLine);
 				B.SetRoomData("hg_game", Application.version);
+				B.SetRoomData("hg_tools", ToolsVersion);
 				B.SetRoomData("hg_host", B.LocalName);
 				Active = true;
 				IsHost = true;
@@ -349,7 +353,7 @@ namespace Multiplayer
 				return;
 			}
 			SaveSandbox.Enter();
-			string mismatch = room.Data.Count > 0 ? Mismatch(room.Get("hg_mp"), room.Get("hg_sum"), room.Get("hg_mods"), room.Get("hg_game")) : null;
+			string mismatch = room.Data.Count > 0 ? Mismatch(room.Get("hg_mp"), room.Get("hg_sum"), room.Get("hg_mods"), room.Get("hg_game"), room.Get("hg_tools")) : null;
 			if (mismatch != null)
 			{
 				Fail(mismatch);
@@ -365,7 +369,7 @@ namespace Multiplayer
 					return;
 				}
 				// Invites carry no room data until we are inside, so check again with the real numbers.
-				string late = Mismatch(B.GetRoomData("hg_mp"), B.GetRoomData("hg_sum"), B.GetRoomData("hg_mods"), B.GetRoomData("hg_game"));
+				string late = Mismatch(B.GetRoomData("hg_mp"), B.GetRoomData("hg_sum"), B.GetRoomData("hg_mods"), B.GetRoomData("hg_game"), B.GetRoomData("hg_tools"));
 				if (late != null)
 				{
 					B.Leave();
@@ -380,6 +384,8 @@ namespace Multiplayer
 				Peers.Clear();
 				Peers.Add(new Peer { Id = LocalId, Name = CleanName(B.LocalName) });
 				lastHeard.Clear();
+				helloCount = 0;
+				heardFromHost = 0;
 				SendHello();
 				helloDeadline = Time.realtimeSinceStartup + 10f;
 				helloResend = Time.realtimeSinceStartup + 1.5f;
@@ -391,11 +397,12 @@ namespace Multiplayer
 		private static void SendHello()
 		{
 			W w = new W(Msg.Hello).I32(Checksums.Protocol).Str(CleanName(B.LocalName)).Str(Checksums.Combined).Str(Checksums.ModLine).Str(Application.version);
+			helloCount++;
 			B.Send(HostId, w.Bytes(), true);
 		}
 
 		/// <summary>Null when the room has exactly the mods and game this player has; otherwise a sentence saying what differs.</summary>
-		internal static string Mismatch(string protocol, string sum, string mods, string game)
+		internal static string Mismatch(string protocol, string sum, string mods, string game, string tools = null)
 		{
 			if (protocol != Checksums.Protocol.ToString())
 			{
@@ -429,7 +436,14 @@ namespace Multiplayer
 			}
 			if (missing.Count + extra.Count + different.Count == 0)
 			{
-				text.Append(" The game or HalfGripTools version is different.");
+				if (!string.IsNullOrEmpty(tools) && tools != ToolsVersion)
+				{
+					text.Append(" The room uses HalfGripTools ").Append(tools).Append(", you have ").Append(ToolsVersion).Append('.');
+				}
+				else
+				{
+					text.Append(" The game or HalfGripTools version is different.");
+				}
 			}
 			return text.ToString();
 		}
@@ -501,7 +515,7 @@ namespace Multiplayer
 			{
 				return; // already left (a second goodbye from the network, say); never touch the sandbox twice
 			}
-			bool wasActive = Active; Pause.Release(); ViewingResults = false; Garage.Solo = false; Garage.SoloSeen = false; Garage.ReturnToScreen = Flow.ActiveScene != Flow.MenuScene;
+			bool wasActive = Active; Ui.ReleaseInputs(); Pause.Release(); ViewingResults = false; Garage.Solo = false; Garage.SoloSeen = false; Garage.ReturnToScreen = Flow.ActiveScene != Flow.MenuScene;
 			if (Active && B != null)
 			{
 				// what the others are told is about the leaver, not the leaver's own message
@@ -684,6 +698,10 @@ namespace Multiplayer
 			try
 			{
 				lastHeard[from] = Time.realtimeSinceStartup;
+				if (!IsHost && from == HostId)
+				{
+					heardFromHost++;
+				}
 				Handle(from, r);
 			}
 			catch (Exception e)
@@ -902,6 +920,7 @@ namespace Multiplayer
 			string reason = null;
 			if (existing != null)
 			{
+				Mod.Log.LogInfo("Hello again from " + existing.Name + " (" + from + "): welcome sent again.");
 				SendTo(from, WelcomeMessage(true, ""));
 				return;
 			}
@@ -930,6 +949,7 @@ namespace Multiplayer
 			Peers.Add(new Peer { Id = from, Name = name });
 			Mod.Log.LogInfo(name + " joined the room (" + from + ")");
 			Say(name + " joined.");
+			Mod.Log.LogInfo("Welcome sent to " + name + " (" + from + ").");
 			SendTo(from, WelcomeMessage(true, ""));
 			BroadcastRoster();
 		}
@@ -952,6 +972,7 @@ namespace Multiplayer
 			}
 			helloDeadline = 0f;
 			Busy = "";
+			Mod.Log.LogInfo("Welcome received from the host after " + helloCount + " hello(s).");
 			ApplyRoster(r);
 		}
 
@@ -1500,6 +1521,11 @@ namespace Multiplayer
 
 		internal static void Tick()
 		{
+			if (leavingUntil > 0f && Flow.InMenu)
+			{
+				// the menu is up: nothing is "leaving" any more. Left set, it blocked the track load of a race started within 20 s of leaving one.
+				leavingUntil = 0f;
+			}
 			if (restorePending && Flow.InMenu && !Flow.Busy)
 			{
 				restorePending = false;
@@ -1534,7 +1560,8 @@ namespace Multiplayer
 				if (now > helloDeadline)
 				{
 					helloDeadline = 0f;
-					Leave("The host did not answer.");
+					Mod.Log.LogWarning("Join failed: sent " + helloCount + " hello(s) to " + HostId + ", heard " + heardFromHost + " packet(s) from the host.");
+					Leave("The host did not answer. No connection could be made between your PCs over Steam.");
 					return;
 				}
 				if (now > helloResend)

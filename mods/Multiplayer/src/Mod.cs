@@ -46,7 +46,7 @@ namespace Multiplayer
 
 		public override void Unload()
 		{
-			Pause.Release(); Cover.Remove(); Garage.Solo = false; Room.Shutdown();
+			Ui.ReleaseInputs(); Pause.Release(); Cover.Remove(); Garage.Solo = false; Room.Shutdown();
 			MenuHook.Remove();
 			GarageUi.Remove();
 			Hud.Remove();
@@ -70,6 +70,7 @@ namespace Multiplayer
 			try
 			{
 				MenuHook.Tick();
+				Ui.TickInputs();
 				Room.Tick();
 				RaceSync.Tick(); Pause.Tick(); Chat.Tick(); Skins.Tick(); Garage.Tick(); Cover.Tick();
 			}

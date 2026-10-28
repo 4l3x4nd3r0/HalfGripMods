@@ -318,6 +318,7 @@ namespace Multiplayer
 		internal static void Spawn(TrackManager manager)
 		{
 			Remove();
+			Ui.ReleaseInputs(); // a lobby text box that was still focused when the menu went must not keep the car muted
 			tm = manager;
 			Traverse t = Traverse.Create(manager);
 			List<Transform> starts = t.Field("startPositions").GetValue<List<Transform>>();
