@@ -198,19 +198,8 @@ def bepinex_plug():
 
 
 def installer_picture():
-    """The badge picture with a green download arrow in a dark square, bottom right."""
-    base = badge_hand()
-    d = ImageDraw.Draw(base)
-    rect(d, 43, 43, 63, 63, (12, 12, 16, 255))
-    rect(d, 44, 44, 62, 62, (31, 31, 38, 255))
-    green = (64, 184, 89, 255)
-    rect(d, 51, 47, 55, 55, green)
-    rect(d, 48, 54, 58, 55, green)
-    rect(d, 49, 56, 57, 56, green)
-    rect(d, 50, 57, 56, 57, green)
-    rect(d, 52, 58, 54, 58, green)
-    rect(d, 46, 60, 60, 61, green)
-    return base
+    """The installer uses the same badge as HalfGripTools, so the two read as one family."""
+    return badge_hand()
 
 
 def save_big(img, path, size=SIZE):
