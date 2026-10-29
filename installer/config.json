@@ -1,0 +1,22 @@
+{
+  "bepinex": {
+    "version": "5.4.23.5",
+    "url": "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.5/BepInEx_win_x64_5.4.23.5.zip",
+    "sha256": "82F9878551030F54657792C0740D9D51A09500EEAE1FBA21106B0C441E6732C4",
+    "icon": "https://raw.githubusercontent.com/4l3x4nd3r0/HalfGripMods/main/installer/assets/bepinex.png"
+  },
+  "halfGripTools": {
+    "repo": "4l3x4nd3r0/HalfGripTools",
+    "icon": "https://raw.githubusercontent.com/4l3x4nd3r0/HalfGripTools/main/icon.png"
+  },
+  "mods": {
+    "repo": "4l3x4nd3r0/HalfGripMods"
+  },
+  "installer": {
+    "repo": "4l3x4nd3r0/HalfGripMods"
+  },
+  "recommended": [
+    "https://github.com/htubdawg/ProcTrack",
+    "https://github.com/htubdawg/HalfGripMiniMap"
+  ]
+}

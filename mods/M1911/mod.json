@@ -1,8 +1,9 @@
 {
   "id": "m1911",
   "name": "M1911",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "4l3x4nd3r",
   "description": "A Legendary engraved M1911 pistol: semi-auto, 8 rounds, the revolver's sound.",
+  "icon": "icon.png",
   "gameVersion": "0.418"
 }
