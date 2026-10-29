@@ -187,37 +187,22 @@ namespace HalfGripModsInstaller
 			if (result != null)
 			{
 				// Links that failed come first, so nobody has to scroll to find out why theirs is missing.
-				// Suggestions go last, under the player's own mods.
-				foreach (SourceResult source in result.Sources.OrderBy(s => s.Error == null).ThenBy(s => s.Source.Recommended))
+				List<SourceResult> failed = result.Sources.Where(s => s.Error != null && !s.Source.Recommended && (filter == "all" || filter == "problems") && search.Length == 0).ToList();
+				if (failed.Count > 0)
 				{
-					List<ModCandidate> mods = source.Mods.Where(Shown).ToList();
-					bool showError = source.Error != null && !source.Source.Recommended && (filter == "all" || filter == "problems") && search.Length == 0;
-					if (mods.Count == 0 && !showError)
-					{
-						continue;
-					}
-					placed.Add(new Placed { Kind = Kind.Header, Bounds = new Rectangle(pad, y, Width - 2 * pad, S(28)), Source = source, Text = SectionTitle(source) });
+					placed.Add(new Placed { Kind = Kind.Header, Bounds = new Rectangle(pad, y, Width - 2 * pad, S(28)), Text = "COULD NOT ADD", Extra = "" });
 					y += S(36);
-					if (showError)
+					foreach (SourceResult source in failed)
 					{
 						placed.Add(new Placed { Kind = Kind.Error, Bounds = new Rectangle(pad, y, Width - 2 * pad, S(84)), Source = source });
 						y += S(84) + gap;
 					}
-					for (int i = 0; i < mods.Count; i++)
-					{
-						int col = i % cols;
-						if (col == 0 && i > 0)
-						{
-							y += cardH + gap;
-						}
-						placed.Add(new Placed { Kind = Kind.Card, Bounds = new Rectangle(pad + col * (cardW + gap), y, cardW, cardH), Mod = mods[i], Source = source });
-					}
-					if (mods.Count > 0)
-					{
-						y += cardH + gap;
-					}
 					y += S(8);
 				}
+				// Every mod the player has or added is in one section, whichever repository it comes from. The suggestions are one section
+				// too; installing one moves it up into the first.
+				y = AddSection(y, pad, gap, cols, cardW, cardH, "MODS", "", false);
+				y = AddSection(y, pad, gap, cols, cardW, cardH, "SUGGESTED", "Recommended by the author. Nothing installs until you press its button.", true);
 			}
 			if (placed.Count == 0)
 			{
@@ -228,13 +213,27 @@ namespace HalfGripModsInstaller
 			Invalidate();
 		}
 
-		private static string SectionTitle(SourceResult source)
+		/// <summary>One titled section with the cards of every source that is (or is not) a suggestion. Returns where the next thing starts.</summary>
+		private int AddSection(int y, int pad, int gap, int cols, int cardW, int cardH, string title, string small, bool suggested)
 		{
-			if (source.Source.Recommended)
+			List<KeyValuePair<ModCandidate, SourceResult>> mods = result.Sources.Where(s => s.Source.Recommended == suggested)
+				.SelectMany(s => s.Mods.Select(m => new KeyValuePair<ModCandidate, SourceResult>(m, s))).Where(p => Shown(p.Key)).ToList();
+			if (mods.Count == 0)
 			{
-				return "SUGGESTED  " + source.Source.Name.ToUpperInvariant();
+				return y;
 			}
-			return source.Source.Key == Source.Official.Key ? "HALF GRIP MODS" : source.Source.Name.ToUpperInvariant();
+			placed.Add(new Placed { Kind = Kind.Header, Bounds = new Rectangle(pad, y, Width - 2 * pad, S(28)), Text = title, Extra = small, Source = null });
+			y += S(36);
+			for (int i = 0; i < mods.Count; i++)
+			{
+				int col = i % cols;
+				if (col == 0 && i > 0)
+				{
+					y += cardH + gap;
+				}
+				placed.Add(new Placed { Kind = Kind.Card, Bounds = new Rectangle(pad + col * (cardW + gap), y, cardW, cardH), Mod = mods[i].Key, Source = mods[i].Value });
+			}
+			return y + cardH + gap + S(8);
 		}
 
 		protected override void OnResize(EventArgs e)
@@ -270,7 +269,7 @@ namespace HalfGripModsInstaller
 					case Kind.Header:
 						if (visible)
 						{
-							DrawHeading(g, p.Bounds, p.Text, p.Source.Source.Recommended ? p.Source.Source.Note : "", p.Source.Source.Recommended ? Theme.Amber : Theme.Red);
+							DrawHeading(g, p.Bounds, p.Text, p.Extra, p.Text == "SUGGESTED" ? Theme.Amber : Theme.Red);
 						}
 						break;
 					case Kind.Card:

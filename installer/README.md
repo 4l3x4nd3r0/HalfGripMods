@@ -15,7 +15,7 @@ To update, open the installer again. To take everything out, open the menu (the 
 More, if you want it:
 - **Click a card** to read about a mod: a big picture, the full text, where it comes from, and its button.
 - **+ ADD**: paste the link of someone else's mods. Only add links from people you trust.
-- **SUGGESTED** lists mods the author recommends. Nothing from it is installed until you press its button, and once you have, it gets updates like any other mod.
+- **SUGGESTED** is one section with the mods the author recommends, whichever repository they come from. Nothing from it is installed until you press its button. Once you have, the mod moves up into **MODS**, with the official ones, and gets updates like any other mod. Mods from links you add yourself are in **MODS** too.
 - **STAR** opens the GitHub page; press Star there if you like the mods.
 - **CHECK NOW** asks GitHub straight away. Otherwise the installer asks **once an hour**, not every time it opens.
 - The window can be any size from 640x360 up, the sizes the game itself runs windowed at. It reflows as you drag it.
