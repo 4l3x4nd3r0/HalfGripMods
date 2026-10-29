@@ -90,6 +90,8 @@ namespace HalfGripSniper
 
 			GUI.color = new Color(1f, 1f, 1f, amount * SurroundAlpha);
 			GUI.DrawTexture(new Rect(cx - r, cy - r, 2f * r, 2f * r), lens);
+			// The fills use the white texture, so they need a black tint (the lens texture is already black).
+			GUI.color = new Color(0f, 0f, 0f, amount * SurroundAlpha);
 			Fill(0f, 0f, cx - r, height);
 			Fill(cx + r, 0f, width - (cx + r), height);
 			Fill(cx - r, 0f, 2f * r, cy - r);

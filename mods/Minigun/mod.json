@@ -1,8 +1,9 @@
 {
   "id": "minigun",
   "name": "Minigun",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "4l3x4nd3r",
   "description": "A Legendary roof-mounted Minigun aimed with a Wii-style remote. Unlimited ammo, 3 damage a bullet, limited by heat that ammo boxes cool.",
+  "icon": "icon.png",
   "gameVersion": "0.418"
 }

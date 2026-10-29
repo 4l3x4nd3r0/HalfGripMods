@@ -1,8 +1,9 @@
 {
   "id": "rpg",
   "name": "RPG Launcher",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "4l3x4nd3r",
   "description": "A Legendary RPG with its own rockets, explosion, scorch marks and sounds. Reload it like a real RPG-7.",
+  "icon": "icon.png",
   "gameVersion": "0.418"
 }

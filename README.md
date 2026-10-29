@@ -26,13 +26,17 @@ You need Windows and the game on Steam.
 
 ### Easy way: the installer
 
-1. Click **Code**, then **Download ZIP**, and unzip it.
-2. Open the `installer` folder and double-click `Install-HalfGrip-Mods.bat`.
-3. Start the game.
+1. Download `HalfGrip-Mods-Installer.exe` from the [Releases page](https://github.com/4l3x4nd3r0/HalfGripMods/releases) (the newest release called "installer") and double-click it. Windows may say "Windows protected your PC" because the file is new and unsigned: press **More info**, then **Run anyway**.
+2. Close the game, then press **INSTALL ALL**.
+3. Start the game from Steam.
 
-It finds the game folder through Steam (or asks you to pick it), installs BepInEx 5.4.23.5 and the latest HalfGripTools, checks both downloads against their checksums, and copies in all the mods. Run it again to update. To remove everything, double-click `Uninstall-HalfGrip-Mods.bat`: it asks before it removes anything, asks separately about BepInEx, and never touches your saves.
+The installer finds the game folder through Steam (or asks you to pick it), installs BepInEx 5.4.23.5 and the latest HalfGripTools, checks both downloads against their checksums, and copies in the mods. Every mod is a card with a picture: press **INSTALL** on one mod, or click its card to read more first. Open it again to update. It asks GitHub once an hour, and **CHECK NOW** asks straight away. The menu button (top right) has **Remove the mods from the game**, which takes everything out again (it asks first, asks separately about BepInEx, and never touches your saves), and **How to use** shows the steps inside the program. The window can be made small, down to 640x360.
 
-If you do not like running unknown software, the detailed steps are below, and they are more technical. The installer is one readable script, [`installer/Install-HalfGrip-Mods.ps1`](installer/Install-HalfGrip-Mods.ps1), that does exactly these steps.
+It can also add mods from other people's GitHub pages: **+ ADD**, paste the link, press ADD. It shows a **SUGGESTED** section with community mods I suggest; nothing from it installs until you press its button. Only add links from people you trust. The installer refuses any mod that contains a program file, and it never touches your saves.
+
+If you like the mods, the **STAR** button in the installer opens this page. A star there helps others find them.
+
+If you do not like running unknown software, the detailed steps are below, and they are more technical. The installer is plain C# in [`installer/src`](installer/src), and [`installer/README.md`](installer/README.md) explains what it does. The first version, a PowerShell script, is still in [`installer/legacy_installer`](installer/legacy_installer).
 
 ### Manual steps
 
@@ -152,7 +156,7 @@ Have fun.
 
 - Settings: each code mod writes `BepInEx\config\halfgrip.<mod id>.cfg` on first run, for example `halfgrip.sniperrifle.cfg`. Every entry has a comment. Edit with the game closed.
 - Update: download the repo again and replace the mod folder. It recompiles at the next start.
-- Remove: delete the folder, or switch it off in the mod manager. To remove everything, use `Uninstall-HalfGrip-Mods.bat`.
+- Remove: delete the folder, or switch it off in the mod manager. To remove everything, use the installer: menu, Remove the mods from the game.
 - Saves: items are saved by id. Without their mod, a saved run loses those items. Nothing else in the save changes.
 - The game marks runs with a `cheats` flag. For a vanilla run, switch the mods off and cheats off.
 

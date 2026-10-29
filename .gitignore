@@ -5,3 +5,8 @@ art/*.png
 !art/sniper_render.png
 art/__pycache__/
 *.pyc
+
+# Installer build output (the .exe is attached to a GitHub release by hand, never committed)
+installer/out/
+installer/obj/
+installer/bin/

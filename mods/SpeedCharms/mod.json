@@ -1,8 +1,9 @@
 {
   "id": "speedcharms",
   "name": "Speed Charms",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "4l3x4nd3r",
   "description": "Three charms that raise top speed and engine power. No code: just JSON and pictures.",
+  "icon": "icon.png",
   "gameVersion": "0.418"
 }

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- .NET Framework 4.8 is part of Windows 10 and 11, so players need to install nothing. -->
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net48</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<AssemblyName>HalfGrip-Mods-Installer</AssemblyName>
+		<RootNamespace>HalfGripModsInstaller</RootNamespace>
+		<Product>Half Grip mods installer</Product>
+		<Authors>4l3x4nd3r</Authors>
+		<Version>1.0.0</Version>
+		<LangVersion>latest</LangVersion>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<ApplicationIcon>assets\installer.ico</ApplicationIcon>
+		<Deterministic>true</Deterministic>
+		<DebugType>none</DebugType>
+		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- The pixel font of the window (VT323, SIL Open Font License, assets\OFL.txt). Built into the .exe so nothing else has to be downloaded. -->
+		<EmbeddedResource Include="assets\VT323-Regular.ttf" LogicalName="VT323-Regular.ttf" />
+		<!-- The first copy of config.json (what the saved copy starts as; GitHub's newer one replaces it) and the pictures used until GitHub's arrive. -->
+		<EmbeddedResource Include="config.json" LogicalName="config.json" />
+		<EmbeddedResource Include="assets\bepinex.png" LogicalName="bepinex.png" />
+		<EmbeddedResource Include="assets\tools.png" LogicalName="tools.png" />
+		<EmbeddedResource Include="assets\installer.png" LogicalName="installer.png" />
+		<EmbeddedResource Include="assets\installer.ico" LogicalName="installer.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="System.Net.Http" />
+		<Reference Include="System.IO.Compression" />
+		<Reference Include="System.IO.Compression.FileSystem" />
+	</ItemGroup>
+
+</Project>
