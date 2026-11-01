@@ -79,12 +79,16 @@ namespace Multiplayer
 		internal static void Remove()
 		{
 			Spectator.Stop();
+			Countdown.Remove();
 			Cues.Remove();
 			humans.Clear();
+			aiRespawnAt.Clear();
+			aiLastSpot.Clear();
 			aiProxies.Clear();
 			aiReal.Clear();
 			aiReported.Clear();
 			aiStats.Clear();
+			Bots.Reset();
 			tm = null;
 			localOut = false;
 			wreckReported = false;
@@ -166,6 +170,100 @@ namespace Multiplayer
 					}
 				}
 			}
+		}
+
+		private static readonly Dictionary<int, float> aiRespawnAt = new Dictionary<int, float>();
+		private static readonly Dictionary<int, Vector3> aiLastSpot = new Dictionary<int, Vector3>();
+
+		/// <summary>
+		/// Host: with the RESPAWN rule on, a wrecked AI car comes back like a player does (after the same time), on the racing line where it was
+		/// wrecked. It is a new car (the game destroys a wrecked one), so it starts its laps again; clients are told with <see cref="Msg.AiRespawned"/>.
+		/// </summary>
+		private static void RespawnAi()
+		{
+			if (Room.Race == null || Room.Race.Wreck != RaceSettings.WreckRespawn || Room.Race.Mode == RaceSettings.ModeDemolition || Room.Phase != Phase.Racing)
+			{
+				return;
+			}
+			float now = Time.unscaledTime;
+			for (int i = 0; i < aiReal.Count; i++)
+			{
+				EnemyController ec = aiReal[i];
+				AiStat stat;
+				aiStats.TryGetValue(i, out stat);
+				if (ec != null && ec.alive)
+				{
+					Rigidbody rb = ec.carController != null ? ec.carController.rb : null;
+					aiLastSpot[i] = rb != null ? rb.position : ec.transform.position;
+					aiRespawnAt.Remove(i);
+					continue;
+				}
+				if (stat != null && stat.Finish > 0f)
+				{
+					continue; // it finished the race: it stays finished
+				}
+				float at;
+				if (!aiRespawnAt.TryGetValue(i, out at))
+				{
+					aiRespawnAt[i] = now + RespawnTotal(Room.Race.RespawnSeconds);
+					continue;
+				}
+				if (now >= at && aiLastSpot.ContainsKey(i))
+				{
+					aiRespawnAt.Remove(i);
+					RespawnAiCar(i);
+				}
+			}
+		}
+
+		private static void RespawnAiCar(int index)
+		{
+			PathManager line = tm.lapManager != null ? tm.lapManager.trackLine : null;
+			if (line == null || line.sampledPoints.Count < 4)
+			{
+				return;
+			}
+			List<Vector3> pts = line.sampledPoints;
+			int at = line.GetClosestPointIndex(aiLastSpot[index]);
+			Vector3 ahead = pts[(at + 1) % pts.Count] - pts[at];
+			ahead.y = 0f;
+			Quaternion rotation = ahead.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(ahead.normalized, Vector3.up) : Quaternion.identity;
+			Vector3 position = pts[at] + Vector3.up * 0.8f;
+			List<EnemyController> enemies = Traverse.Create(tm).Field("enemies").GetValue<List<EnemyController>>();
+			EnemyController fresh = SpawnAi(tm, enemies, position, rotation, index);
+			aiReal[index] = fresh;
+			aiReported.Remove(index);
+			AiStat stat;
+			if (aiStats.TryGetValue(index, out stat))
+			{
+				stat.Dead = false;
+				stat.Counted = false;
+				stat.Lap = 0;
+				stat.LastTotal = 0f;
+			}
+			Mod.Log.LogInfo("Bot " + index + " respawned on the racing line.");
+			Room.SendAll(new W(Msg.AiRespawned).U8(index).Vec(position).Rot(rotation));
+		}
+
+		/// <summary>Client: the host's AI car came back; its old stand-in was wrecked and is on its way out.</summary>
+		internal static void OnAiRespawned(R r)
+		{
+			int index = r.U8();
+			Vector3 p = r.Vec();
+			Quaternion q = r.Rot();
+			if (tm == null || index < 0 || index >= aiProxies.Count)
+			{
+				return;
+			}
+			RemoteCar old = aiProxies[index];
+			if (old != null)
+			{
+				UnityEngine.Object.Destroy(old.gameObject);
+			}
+			List<EnemyController> enemies = Traverse.Create(tm).Field("enemies").GetValue<List<EnemyController>>();
+			RemoteCar fresh = SpawnProxy(tm, enemies, p, q, Bots.AiName(index), 0, true, index);
+			fresh.OnState(p, q, Vector3.zero, 0f, 1f);
+			aiProxies[index] = fresh;
 		}
 
 		private static void NoteAiLap(AiStat stat, float total)
@@ -326,21 +424,64 @@ namespace Multiplayer
 			float gridHeight = t.Field("normalGridHeight").GetValue<float>();
 			List<Transform> slots = new List<Transform> { playerStart };
 			slots.AddRange(starts.Take(5));
-			// a track with fewer grid spots than the room has cars gets extra spots queued up behind the last one
-			while (slots.Count < 6)
+			// a track with fewer grid spots than the room has cars gets extra spots behind the start, along the racing line
+			int needed = 6;
+			foreach (Peer p in Room.Peers)
 			{
-				Transform last = slots[slots.Count - 1];
-				GameObject extra = new GameObject("MpExtraGridSpot" + slots.Count);
-				extra.transform.SetPositionAndRotation(last.position - Vector3.right * 9f, last.rotation);
-				slots.Add(extra.transform);
+				needed = Math.Max(needed, p.Grid == Room.SpectatorGrid ? 0 : p.Grid + 1);
 			}
+			foreach (int g in Room.AiGrid)
+			{
+				needed = Math.Max(needed, g + 1);
+			}
+			Transform firstSpot = slots[0];
 			Quaternion heading = Heading();
+			while (slots.Count < needed)
+			{
+				slots.Add(ExtraSpot(manager, firstSpot, slots.Count - 6, heading));
+			}
 			List<EnemyController> enemies = t.Field("enemies").GetValue<List<EnemyController>>();
 			RaceSettings race = Room.Race;
 			Mod.Log.LogInfo("Race scene: " + slots.Count + " grid slots, " + Room.Peers.Count + " player(s), " + Room.AiGrid.Count + " AI");
 
+			// a mode from another mod may place the cars itself (the same answer on every machine)
+			HalfGripTools.NetMode def = Room.Race != null ? Room.Race.ModDef : null;
+			bool customSpots = false;
+			if (def != null && def.SpawnPoint != null)
+			{
+				for (int g = 0; g < needed; g++)
+				{
+					try
+					{
+						Pose? pose = def.SpawnPoint(g);
+						if (pose.HasValue)
+						{
+							GameObject spot = new GameObject("MpModeSpot" + g);
+							spot.transform.SetPositionAndRotation(pose.Value.position, pose.Value.rotation);
+							while (slots.Count <= g)
+							{
+								slots.Add(spot.transform);
+							}
+							slots[g] = spot.transform;
+							customSpots = true;
+						}
+					}
+					catch (Exception e)
+					{
+						Mod.Log.LogWarning("The mode's SpawnPoint(" + g + ") failed: " + e.Message);
+					}
+				}
+			}
+			// slots past the track's own six face along the racing line; the stock six use the game's heading
+			Func<int, Quaternion> facing = g => customSpots || g >= 6 ? slots[g].rotation : heading;
+			bool localSpectator = false;
 			foreach (Peer peer in Room.Peers)
 			{
+				if (peer.Grid == Room.SpectatorGrid)
+				{
+					localSpectator |= peer.Local; // more players than the mode takes: this one watches
+					continue;
+				}
 				if (peer.Grid < 0 || peer.Grid >= slots.Count)
 				{
 					Mod.Log.LogWarning(peer.Name + " has no grid slot (" + peer.Grid + ")");
@@ -352,12 +493,12 @@ namespace Multiplayer
 				{
 					if (peer.Grid != 0)
 					{
-						MovePlayer(manager, at, heading);
+						MovePlayer(manager, at, facing(peer.Grid));
 					}
 				}
 				else
 				{
-					humans[peer.Id] = SpawnProxy(manager, enemies, at, heading, peer.Name, peer.Id, false, -1);
+					humans[peer.Id] = SpawnProxy(manager, enemies, at, facing(peer.Grid), peer.Name, peer.Id, false, -1);
 				}
 			}
 			for (int i = 0; i < Room.AiGrid.Count; i++)
@@ -370,11 +511,11 @@ namespace Multiplayer
 				Vector3 at = GridPoint(slots[g], gridHeight);
 				if (Room.IsHost)
 				{
-					aiReal.Add(SpawnAi(manager, enemies, at, heading, i));
+					aiReal.Add(SpawnAi(manager, enemies, at, facing(g), i));
 				}
 				else
 				{
-					aiProxies.Add(SpawnProxy(manager, enemies, at, heading, null, 0, true, i));
+					aiProxies.Add(SpawnProxy(manager, enemies, at, facing(g), Bots.AiName(i), 0, true, i));
 				}
 			}
 			TrackManager.endRaceInstead = LocalRaceEnded;
@@ -389,6 +530,65 @@ namespace Multiplayer
 			aiReported.Clear();
 			Cover.Hide();
 			Room.LocalLoaded();
+			if (localSpectator)
+			{
+				// the room has more players than this mode takes: no car for this one, the drone follows the others from the start
+				Mod.Log.LogInfo("This player is a spectator (the mode takes " + race.Cap + " players).");
+				HideLocalCar();
+				CarLink.godMode = true;
+				Spectator.Begin();
+			}
+		}
+
+		/// <summary>
+		/// Extra grid spot number <paramref name="k"/> (0 = the first beyond the track's own six): two cars to a row, rows 9 m apart, walking back
+		/// from the start along the racing line, so the queue follows the road instead of a straight line that may leave it.
+		/// </summary>
+		private static Transform ExtraSpot(TrackManager manager, Transform start, int k, Quaternion heading)
+		{
+			GameObject spot = new GameObject("MpExtraGridSpot" + (k + 6));
+			PathManager line = manager.lapManager != null ? manager.lapManager.trackLine : null;
+			List<Vector3> pts = line != null ? line.sampledPoints : null;
+			Vector3 position;
+			Quaternion rotation = heading;
+			if (pts == null || pts.Count < 8)
+			{
+				// no racing line to follow: stand behind the first spot (the stock cars face the way of the heading)
+				Vector3 forward = heading * Vector3.forward;
+				Vector3 side = Vector3.Cross(Vector3.up, forward);
+				position = start.position - forward * (9f * (1 + k / 2)) + side * ((k % 2 == 0 ? -1f : 1f) * 2.6f);
+			}
+			else
+			{
+				int at = line.GetClosestPointIndex(start.position);
+				float behind = 9f * (2 + k / 2);
+				float walked = 0f;
+				int index = at;
+				while (walked < behind && walked < 5000f)
+				{
+					int before = (index - 1 + pts.Count) % pts.Count;
+					walked += Vector3.Distance(pts[index], pts[before]);
+					index = before;
+					if (index == at)
+					{
+						break;
+					}
+				}
+				Vector3 point = pts[index];
+				Vector3 ahead = pts[(index + 1) % pts.Count] - point;
+				ahead.y = 0f;
+				if (ahead.sqrMagnitude < 0.0001f)
+				{
+					ahead = heading * Vector3.forward;
+				}
+				ahead.Normalize();
+				rotation = Quaternion.LookRotation(ahead, Vector3.up);
+				Vector3 side = Vector3.Cross(Vector3.up, ahead);
+				position = point + side * ((k % 2 == 0 ? -1f : 1f) * 2.6f);
+				position.y = point.y + (start.position.y - pts[at].y);
+			}
+			spot.transform.SetPositionAndRotation(position, rotation);
+			return spot.transform;
 		}
 
 		private static Vector3 GridPoint(Transform slot, float gridHeight)
@@ -397,14 +597,17 @@ namespace Multiplayer
 			return new Vector3(slot.position.x, y, slot.position.z);
 		}
 
-		private static void MovePlayer(TrackManager manager, Vector3 at, Quaternion heading)
+		private static void MovePlayer(TrackManager manager, Vector3 at, Quaternion heading, bool raiseOnly = true)
 		{
 			CarControllerNew player = manager.playerCarController;
 			if (player == null)
 			{
 				return;
 			}
-			at.y = Mathf.Max(at.y, player.transform.position.y);
+			if (raiseOnly)
+			{
+				at.y = Mathf.Max(at.y, player.transform.position.y);
+			}
 			AudioListener listener = player.GetComponentInChildren<AudioListener>(true);
 			bool on = listener != null && listener.enabled;
 			if (on)
@@ -451,7 +654,29 @@ namespace Multiplayer
 		/// <summary>One of the host's real AI cars: it drives itself.</summary>
 		private static EnemyController SpawnAi(TrackManager manager, List<EnemyController> enemies, Vector3 at, Quaternion heading, int index)
 		{
-			EnemyController ai = MakeCar(manager, enemies, at, heading, null, "Enemy_ai" + index);
+			Bots.Plan plan = Room.Race != null ? Bots.Roll(Room.Race, index) : null;
+			EnemyGun prefabGun = manager.enemyCarPrefab != null ? manager.enemyCarPrefab.GetComponentInChildren<EnemyGun>(true) : null;
+			float stockNoGun = prefabGun != null ? prefabGun.noGunChance : 0f;
+			if (plan != null && prefabGun != null && plan.NoGun >= 0f)
+			{
+				prefabGun.noGunChance = plan.NoGun; // the gun rolls this in its Awake, which runs as the car is made
+			}
+			EnemyController ai;
+			try
+			{
+				ai = MakeCar(manager, enemies, at, heading, Bots.AiName(index), "Enemy_ai" + index);
+			}
+			finally
+			{
+				if (prefabGun != null)
+				{
+					prefabGun.noGunChance = stockNoGun;
+				}
+			}
+			if (plan != null)
+			{
+				Bots.Apply(ai, plan, index);
+			}
 			NameTag.Attach(ai.gameObject, () =>
 			{
 				CarSkinController skin = ai != null ? ai.GetComponent<CarSkinController>() : null;
@@ -533,6 +758,7 @@ namespace Multiplayer
 				if (Room.IsHost)
 				{
 					WatchAi();
+					RespawnAi();
 					if (now >= nextAi)
 					{
 						nextAi = now + 0.066f;
@@ -611,7 +837,7 @@ namespace Multiplayer
 		internal static void OnAiState(R r)
 		{
 			int count = r.U8();
-			for (int i = 0; i < count && i < 8; i++)
+			for (int i = 0; i < count && i < Room.Ceiling; i++)
 			{
 				bool alive = r.U8() == 1;
 				Vector3 p = r.Vec();
@@ -665,6 +891,7 @@ namespace Multiplayer
 			if (link.hp <= 0f && !wreckReported && !RaceTracker.Ended)
 			{
 				wreckReported = true;
+				NoteWreckSpot();
 				Peer me = Room.Me;
 				ulong killer = me != null && me.LastAttacker != 0 && Time.time - me.LastAttackTime < 8f ? me.LastAttacker : 0UL;
 				bool out_ = Room.Race.Mode == RaceSettings.ModeDemolition || Room.Race.Wreck == RaceSettings.WreckSpectate;
@@ -672,36 +899,132 @@ namespace Multiplayer
 				{
 					me.Time = tm.TimeSinceRaceStart;
 				}
-				TextController.EnqueueRandomText(1.5f, "WRECKED", "TOTALLED", "SCRAPPED");
+				// the player sees the wreck first: still in the burning car with the red text on screen, and only then the drone or the countdown
+				ShowWrecked();
 				int aiKiller = Combat.LastAiShooter >= 0 && Time.time - Combat.LastAiShotAt < 8f && killer == 0UL ? Combat.LastAiShooter : 255;
 				Room.LocalWrecked(killer, aiKiller);
 				if (out_)
 				{
 					localOut = true;
-					Spectator.Begin();
+					tm.StartCoroutine(SpectateAfterWreck());
 				}
 				else
 				{
-					respawnAt = Time.unscaledTime + Room.Race.RespawnSeconds;
+					respawnAt = Time.unscaledTime + RespawnTotal(Room.Race.RespawnSeconds);
 					Spectator.Stop();
 					tm.StartCoroutine(RespawnLater());
 				}
 			}
 		}
 
-		private static IEnumerator RespawnLater()
+		/// <summary>Seconds a wrecked player stays in the car, burning and with the WRECKED text, before the drone (or the respawn) takes over.</summary>
+		internal const float WreckHold = 3.5f;
+
+		private static IEnumerator SpectateAfterWreck()
 		{
-			while (Time.unscaledTime < respawnAt)
+			float until = Time.unscaledTime + WreckHold;
+			while (Time.unscaledTime < until)
 			{
 				yield return null;
 			}
+			// no drone if the race ended while the player was still looking at the wreck (the results come next)
+			if (localOut && Room.Active && Room.Race != null && Room.Phase == Phase.Racing && tm != null && !Spectator.Active)
+			{
+				Spectator.Begin();
+			}
+		}
+
+		/// <summary>
+		/// From the wreck to the respawn: the WRECKED text and the burning car for <see cref="WreckHold"/>, and after that the host's RESPAWN IN
+		/// setting as a countdown of whole seconds (at least 1).
+		/// </summary>
+		internal static float RespawnTotal(float setting)
+		{
+			return WreckHold + Mathf.Max(1, Mathf.CeilToInt(setting));
+		}
+
+		/// <summary>The game's own failure red (the colour of FAILED at the end of a single-player wreck) on the end-of-race combo line; the plain TextController line if that widget is not in the scene.</summary>
+		private static void ShowWrecked()
+		{
+			if (UnityEngine.Object.FindFirstObjectByType<EndRaceScreenCombo>() != null)
+			{
+				EndRaceScreenCombo.UpdateComboInstant("<color=#" + RaceOutcomeText.Hex(false) + ">" + Loc.T("WRECKED") + "</color>", ComboType.NoCount, 1f);
+			}
+			else
+			{
+				TextController.EnqueueRandomText(WreckHold - 0.5f, "WRECKED", "TOTALLED", "SCRAPPED");
+			}
+		}
+
+		private static Vector3 wreckSpot;
+		private static float wreckYaw;
+		private static bool hasWreckSpot;
+		private static bool allowReset;
+
+		/// <summary>The local player is wrecked (from the wreck until the respawn, or for the rest of the race when out).</summary>
+		internal static bool Wrecked { get { return Room.Active && Room.Race != null && wreckReported; } }
+
+		/// <summary>No reset of the car while wrecked: not by R, not by the pause menu, not by the game's own fell-off-the-map reset. The mod's own respawn is the one exception.</summary>
+		internal static bool ResetBlocked { get { return Wrecked && !allowReset; } }
+
+		/// <summary>Where the car was when its HP ran out: the respawn puts it back there, not on the road where it has rolled to.</summary>
+		private static void NoteWreckSpot()
+		{
+			CarControllerNew car = tm != null ? tm.playerCarController : null;
+			Rigidbody body = car == null ? null : (car.rb != null ? car.rb : car.GetComponent<Rigidbody>());
+			hasWreckSpot = body != null;
+			if (hasWreckSpot)
+			{
+				wreckSpot = body.position;
+				wreckYaw = body.rotation.eulerAngles.y;
+			}
+		}
+
+		/// <summary>
+		/// The respawn is on the track at the place where the damage happened: the car is first moved to the recorded spot and then the game's own
+		/// reset onto the track runs from there. It takes the nearest clear road point (so a crash into a wall does not put the car in the wall),
+		/// faces along the track, stands still, and steps back along the road if another car is in the way.
+		/// </summary>
+		private static void PlaceAtWreck()
+		{
+			CarControllerNew cc = tm.playerCarController;
+			if (hasWreckSpot && cc != null)
+			{
+				MovePlayer(tm, wreckSpot, Quaternion.Euler(0f, wreckYaw, 0f), false);
+			}
+			allowReset = true;
+			try
+			{
+				tm.ResetPlayerOnTrack();
+			}
+			finally
+			{
+				allowReset = false;
+			}
+		}
+
+		private static IEnumerator RespawnLater()
+		{
+			// the WRECKED text and the car burning first
+			float countdownFrom = Time.unscaledTime + WreckHold;
+			while (Time.unscaledTime < countdownFrom)
+			{
+				yield return null;
+			}
+			while (Time.unscaledTime < respawnAt)
+			{
+				Countdown.Show(Mathf.CeilToInt(respawnAt - Time.unscaledTime));
+				yield return null;
+			}
+			Countdown.Hide();
 			CarLink link = tm.playerCarlink;
 			if (link == null)
 			{
 				yield break;
 			}
-			link.hp = link.MaxHp;
-			tm.ResetPlayerOnTrack();
+			// items can lower the maximum to nothing: a respawned car always has at least 1 HP
+			link.hp = link.MaxHp >= 1f ? link.MaxHp : 1f;
+			PlaceAtWreck();
 			wreckReported = false;
 			TextController.EnqueueRandomText(1f, "BACK IN THE RACE");
 			CarControllerNew cc = tm.playerCarController;
@@ -991,6 +1314,34 @@ namespace Multiplayer
 			{
 				yield return original.Current;
 			}
+		}
+	}
+
+	// A wrecked player cannot reset the car: holding R (and its "Hold R to reset" hint, and the automatic reset after falling off the map) is the game's PlayerResetLogic.Tick.
+	[HarmonyPatch(typeof(PlayerResetLogic), nameof(PlayerResetLogic.Tick))]
+	internal static class NoResetKeyWhenWrecked
+	{
+		private static bool Prefix() => !RaceSync.ResetBlocked;
+	}
+
+	[HarmonyPatch(typeof(PlayerResetLogic), nameof(PlayerResetLogic.ResetOnTrack))]
+	internal static class NoResetWhenWrecked
+	{
+		private static bool Prefix() => !RaceSync.ResetBlocked;
+	}
+
+	// ... nor from the pause menu's button (which is also hidden while wrecked, see Pause.ShowResetButton)
+	[HarmonyPatch(typeof(PauseController), nameof(PauseController.ResetCar))]
+	internal static class NoPauseResetWhenWrecked
+	{
+		private static bool Prefix(PauseController __instance)
+		{
+			if (!RaceSync.Wrecked)
+			{
+				return true;
+			}
+			__instance.Resume();
+			return false;
 		}
 	}
 

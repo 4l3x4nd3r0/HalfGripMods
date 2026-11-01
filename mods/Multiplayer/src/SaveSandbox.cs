@@ -19,7 +19,6 @@ namespace Multiplayer
 		private static Dictionary<string, string> strings;
 		private static bool dirtySave;
 		private static bool dirtyHistory;
-		private static bool copied;
 
 		private static readonly Func<string, bool> IsSetting = (Func<string, bool>)Delegate.CreateDelegate(typeof(Func<string, bool>), AccessTools.Method(typeof(SaveData), "IsSetting"));
 
@@ -29,7 +28,17 @@ namespace Multiplayer
 		internal static bool ReadOnly { get; set; }
 
 		/// <summary>True when the patches below must block writes.</summary>
-		internal static bool Blocking => Active || ReadOnly;
+		/// <summary>
+		/// Wider than <see cref="Active"/> on purpose: while a room is being made, in the garage, or leaving, a bug in the sandbox's own
+		/// bookkeeping must still not let a write through to the player's save.
+		/// </summary>
+		internal static bool Blocking => Active || ReadOnly || Room.Engaged || Garage.Solo || Room.restorePending || Room.Leaving;
+
+		/// <summary>Settings stay as they are, except the speedrun records and mode, which the room must not be able to change.</summary>
+		private static bool Restored(string key)
+		{
+			return !IsSetting(key) || key.StartsWith("speedrun.", StringComparison.Ordinal);
+		}
 
 		internal static void Enter()
 		{
@@ -57,18 +66,22 @@ namespace Multiplayer
 		{
 			try
 			{
+				if (ReadOnly)
+				{
+					return; // a test copy of the game: nothing may be written to the player's save folder, not even the backup
+				}
 				if (SaveData.SaveUnreadable || Table<int>("ints").Count == 0)
 				{
 					Mod.Log.LogWarning("Save sandbox: the save was already empty or unreadable when the room started; no copy made.");
 					return;
 				}
-				if (copied || !File.Exists(SaveData.FilePath) || new FileInfo(SaveData.FilePath).Length < 100)
+				// One copy, refreshed on every entry into multiplayer (the sandbox is only ever entered with the real save in memory and on disk).
+				if (!File.Exists(SaveData.FilePath) || new FileInfo(SaveData.FilePath).Length < 100)
 				{
 					return;
 				}
 				string target = SaveData.FilePath + ".multiplayer-backup";
 				File.Copy(SaveData.FilePath, target, true);
-				copied = true;
 				Mod.Log.LogInfo("Save sandbox: copy of the save kept as " + target);
 			}
 			catch (Exception e)
@@ -98,13 +111,13 @@ namespace Multiplayer
 
 		private static void Restore<T>(Dictionary<string, T> live, Dictionary<string, T> copy)
 		{
-			foreach (string key in live.Keys.Where(k => !IsSetting(k)).ToList())
+			foreach (string key in live.Keys.Where(Restored).ToList())
 			{
 				live.Remove(key);
 			}
 			foreach (KeyValuePair<string, T> pair in copy)
 			{
-				if (!IsSetting(pair.Key))
+				if (Restored(pair.Key))
 				{
 					live[pair.Key] = pair.Value;
 				}
@@ -143,6 +156,53 @@ namespace Multiplayer
 	// A stand-in run starts through Speedrun.BeginRun -> RestoreBackup, which deletes save.speedrun.json from disk; that file belongs to the real save.
 	[HarmonyPatch(typeof(SaveData), nameof(SaveData.RestoreBackup))]
 	internal static class SkipRestoreBackup
+	{
+		private static bool Prefix(ref bool __result)
+		{
+			if (!SaveSandbox.Blocking)
+			{
+				return true;
+			}
+			__result = false;
+			return false;
+		}
+	}
+
+	// Run statistics: the game stores a finished or abandoned run in its history and, when the player shares stats, writes an outbox file and uploads it.
+	[HarmonyPatch(typeof(RunStats), nameof(RunStats.RaceFinished))]
+	internal static class SkipRaceStats
+	{
+		private static bool Prefix() => !SaveSandbox.Blocking;
+	}
+
+	[HarmonyPatch(typeof(RunStats), nameof(RunStats.RunAbandoned))]
+	internal static class SkipRunAbandoned
+	{
+		private static bool Prefix() => !SaveSandbox.Blocking;
+	}
+
+	[HarmonyPatch(typeof(RunStats), "Send")]
+	internal static class SkipStatsSend
+	{
+		private static bool Prefix() => !SaveSandbox.Blocking;
+	}
+
+	// save.speedrun.json belongs to the real save.
+	[HarmonyPatch(typeof(SaveData), nameof(SaveData.DropBackup))]
+	internal static class SkipDropBackup
+	{
+		private static bool Prefix() => !SaveSandbox.Blocking;
+	}
+
+	// Reset Progress wipes PlayerPrefs and deletes files, which the restored tables cannot undo.
+	[HarmonyPatch(typeof(ResetProgressButton), nameof(ResetProgressButton.Delete))]
+	internal static class SkipResetProgress
+	{
+		private static bool Prefix() => !SaveSandbox.Blocking;
+	}
+
+	[HarmonyPatch(typeof(SteamAchievements), nameof(SteamAchievements.ResetAll))]
+	internal static class SkipResetAchievements
 	{
 		private static bool Prefix(ref bool __result)
 		{

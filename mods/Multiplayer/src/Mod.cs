@@ -30,6 +30,7 @@ namespace Multiplayer
 			SpectateNext = ModKeyShim.Add(ctx, KeyCode.Tab, "Spectate: next car", keySection);
 			ChatKey = ModKeyShim.Add(ctx, KeyCode.H, ChatLabel, keySection);
 			Pvp.Bind(ctx.Config);
+			ModBus.Install();
 			Rig.Init();
 			if (Rig.On)
 			{
@@ -46,7 +47,7 @@ namespace Multiplayer
 
 		public override void Unload()
 		{
-			Ui.ReleaseInputs(); Pause.Release(); Cover.Remove(); Garage.Solo = false; Room.Shutdown();
+			Ui.ReleaseInputs(); Pause.Release(); Cover.Remove(); Garage.Solo = false; Room.Shutdown(); ModBus.Remove();
 			MenuHook.Remove();
 			GarageUi.Remove();
 			Hud.Remove();
@@ -72,7 +73,7 @@ namespace Multiplayer
 				MenuHook.Tick();
 				Ui.TickInputs();
 				Room.Tick();
-				RaceSync.Tick(); Pause.Tick(); Chat.Tick(); Skins.Tick(); Garage.Tick(); Cover.Tick();
+				RaceSync.Tick(); Pause.Tick(); Chat.Tick(); Skins.Tick(); Garage.Tick(); Cover.Tick(); ModBus.Tick();
 			}
 			catch (System.Exception e)
 			{

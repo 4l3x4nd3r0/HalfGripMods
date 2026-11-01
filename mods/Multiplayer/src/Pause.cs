@@ -52,6 +52,7 @@ namespace Multiplayer
 			{
 				return; // Escape belongs to the chat line while it is open
 			}
+			ShowResetButton();
 			if ((object)held == null)
 			{
 				// a finished player's controls are let go of, which also blocks the game's own Escape: open the pause menu from here
@@ -72,6 +73,43 @@ namespace Multiplayer
 			}
 		}
 
+		private static readonly System.Collections.Generic.List<GameObject> resetButtons = new System.Collections.Generic.List<GameObject>();
+
+		/// <summary>The pause menu's reset-the-car button (wired to PauseController.ResetCar, or named for it).</summary>
+		private static void FindResetButtons(PauseController pause)
+		{
+			resetButtons.Clear();
+			foreach (UnityEngine.UI.Button button in pause.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+			{
+				bool wired = false;
+				for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+				{
+					wired |= button.onClick.GetPersistentMethodName(i) == "ResetCar";
+				}
+				if (wired || button.name.IndexOf("Reset", System.StringComparison.OrdinalIgnoreCase) >= 0)
+				{
+					resetButtons.Add(button.gameObject);
+				}
+			}
+		}
+
+		/// <summary>No reset button while wrecked; it comes back with the respawn.</summary>
+		private static void ShowResetButton()
+		{
+			if (resetButtons.Count == 0)
+			{
+				return;
+			}
+			bool show = !RaceSync.Wrecked;
+			foreach (GameObject go in resetButtons)
+			{
+				if (go != null && go.activeSelf != show)
+				{
+					go.SetActive(show);
+				}
+			}
+		}
+
 		internal static void Hold(PauseController pause, bool paused)
 		{
 			if (paused)
@@ -79,6 +117,8 @@ namespace Multiplayer
 				EndClosing(); // a menu opened again in the frame after it was closed
 				held = pause;
 				GameInput.Mute(pause, true);
+				FindResetButtons(pause);
+				ShowResetButton();
 			}
 			else if ((object)held != null)
 			{

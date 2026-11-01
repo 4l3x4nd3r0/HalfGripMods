@@ -396,6 +396,11 @@ namespace Multiplayer
 		internal static IEnumerator Run(string name)
 		{
 			Rig.Log("scenario " + name + " starting");
+			if (Rig.Arg("-mpmode") == "spectate")
+			{
+				// every copy knows the mode before the host picks it (the roster of a mode this machine lacks falls back to RACE)
+				Mod.Ctx.Net.RegisterMode(new HalfGripTools.NetMode { Id = "rig.two", Name = "RIG TWO", MaxPlayers = 2, MaxLaps = 3 });
+			}
 			yield return new WaitForSecondsRealtime(3f);
 			switch (name)
 			{
@@ -416,6 +421,9 @@ namespace Multiplayer
 					break;
 				case "steamsmoke":
 					yield return RigRoom.SteamSmoke();
+					break;
+				case "garagehost":
+					yield return RigExtra.GarageHost();
 					break;
 				case "hostwatch":
 					yield return RigRoom.HostWatch();

@@ -112,6 +112,23 @@ namespace Multiplayer
 		}
 	}
 
+	/// <summary>The menu builds its Continue button from whatever run is in memory; while the sandbox's stand-in run is there it must stay dark.</summary>
+	[HarmonyPatch(typeof(MainMenu), "Awake")]
+	internal static class ContinueDarkInRoom
+	{
+		private static void Postfix(MainMenu __instance)
+		{
+			if (SaveSandbox.Blocking)
+			{
+				var button = Traverse.Create(__instance).Field("continueButton").GetValue<UnityEngine.UI.Button>();
+				if (button != null)
+				{
+					button.interactable = false;
+				}
+			}
+		}
+	}
+
 	/// <summary>Puts the game's in-memory state back after a room: the save tables are restored by the sandbox, but a few statics cache what they held.</summary>
 	internal static class Restore
 	{
