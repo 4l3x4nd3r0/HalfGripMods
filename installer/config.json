@@ -17,6 +17,8 @@
   },
   "recommended": [
     "https://github.com/htubdawg/ProcTrack",
-    "https://github.com/htubdawg/HalfGripMiniMap"
+    "https://github.com/htubdawg/HalfGripMiniMap",
+    "https://github.com/htubdawg/HalfGripStereo",
+    "https://github.com/htubdawg/HalfGripOpenWorld"
   ]
 }
