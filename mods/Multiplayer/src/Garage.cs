@@ -279,7 +279,7 @@ namespace Multiplayer
 			SoloSeen = false;
 			ReturnToScreen = true;
 			GarageUi.Remove();
-			Room.restorePending = !Room.Active; // in a room the sandbox stays on
+			Room.restorePending = !Room.Engaged; // in (or entering) a room the sandbox stays on
 			Flow.GoToMenu();
 		}
 
@@ -298,7 +298,7 @@ namespace Multiplayer
 			{
 				Solo = false;
 				SoloSeen = false;
-				Room.restorePending = !Room.Active;
+				Room.restorePending = !Room.Engaged;
 				// the menu is already up (it loaded before this was noticed), so put it on the MULTIPLAYER screen now
 				Flow.OpenMultiplayerScreen();
 			}

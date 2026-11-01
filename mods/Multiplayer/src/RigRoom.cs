@@ -25,8 +25,14 @@ namespace Multiplayer
 			}
 		}
 
+		/// <summary>The save text without the game's run clock (it runs in the menu on the player's own run).</summary>
+		private static string WithoutClock(string text)
+		{
+			return text == null ? null : string.Join(Environment.NewLine, text.Replace("\r", "").Split((char)10).Where(l => !l.StartsWith("strings/raceStats=", StringComparison.Ordinal)).ToArray());
+		}
+
 		/// <summary>The end of a session: the host leaves (the client must be sent to the menu), then the save must be as it was.</summary>
-		private static IEnumerator Finish(string before, bool host)
+		internal static IEnumerator Finish(string before, bool host)
 		{
 			string beforeText = BeforeText;
 			if (host)
@@ -52,6 +58,15 @@ namespace Multiplayer
 			}
 			RigScenarios.Check(!SaveSandbox.Active, "the save sandbox is off after the room");
 			string afterText = Rig.SaveText();
+			// A visit that never raced leaves the game's run clock running in the menu on the player's own run (4 s of waiting here = 4 s on the
+			// clock, as in the normal game), so those scenarios compare the save without that one line.
+			bool lobbyOnly = Rig.Arg("-mpmode") == "modbus";
+			if (lobbyOnly)
+			{
+				beforeText = WithoutClock(beforeText);
+				afterText = WithoutClock(afterText);
+				before = Rig.Fingerprint(beforeText);
+			}
 			string after = Rig.Fingerprint(afterText);
 			if (before != after && beforeText != null)
 			{
@@ -67,14 +82,14 @@ namespace Multiplayer
 				}
 			}
 			RigScenarios.Check(before == after, "the save is exactly as it was before the room (" + before + " vs " + after + ")");
-			RigScenarios.Check(!RunState.Active, "no stand-in run is left in memory");
+			RigScenarios.Check(RunState.Active == (SaveData.GetString("run").Length > 0), "the run in memory is the save's own run (or none), not the stand-in (active " + RunState.Active + ", save has a run " + (SaveData.GetString("run").Length > 0) + ")");
 			// the game writes some totals lazily; give it time, then look again
 			yield return Wait(8f);
-			RigScenarios.Check(Rig.SaveFingerprint() == before, "the save is still the same eight seconds later");
+			RigScenarios.Check(lobbyOnly ? Rig.Fingerprint(WithoutClock(Rig.SaveText())) == before : Rig.SaveFingerprint() == before, "the save is still the same eight seconds later");
 			Rig.Shot((host ? "host" : "client") + "_09_menu_after.png");
 		}
 
-		private static string BeforeText;
+		internal static string BeforeText;
 
 		internal static int Players
 		{
@@ -118,12 +133,19 @@ namespace Multiplayer
 			foreach (Peer other in Room.Peers.Where(p => !p.Local).ToList())
 			{
 				Chat.Send("hi " + other.Name);
+				yield return Wait(0.6f); // the chat takes one message per sender per 0.35 s: the second answer sent in the same frame was dropped
 			}
 			yield return RigScenarios.WaitFor(() => Room.Peers.Where(p => !p.Local).All(p => p.PingMs >= 0), 30f, "host: every other player has a ping");
 			Rig.Log("pings: " + string.Join(", ", Room.Peers.Select(p => p.Name + "=" + p.PingMs).ToArray()));
 			yield return RigScenarios.WaitFor(() => Room.Peers.Where(p => !p.Local).All(p => Skins.Colours(p.Skin) != null), 30f, "host: every other player's paint arrived");
 
 			string rigMode = Rig.Arg("-mpmode");
+			if (rigMode == "modbus")
+			{
+				yield return RigExtra.BusHost();
+				yield return Finish(before, true);
+				yield break;
+			}
 			if (rigMode == "combat" || rigMode == "respawn")
 			{
 				GunUpgrade revolver = Loadout.Items().OfType<GunUpgrade>().FirstOrDefault(g => g != null && g.gunType == GunType.REVOLVER && !g.disabled);
@@ -134,9 +156,20 @@ namespace Multiplayer
 			yield return RigScenarios.WaitFor(() => Room.AllReady && Room.Peers.Count >= expected, 60f, "everybody is ready");
 			yield return Wait(2f);
 			Rig.Shot("host_04_ready.png");
+			if (rigMode == "custom")
+			{
+				Room.Settings.Mode = RaceSettings.ModeCustom; // so the settings screenshot shows the grid warning
+				Room.Settings.Ai = 14;
+				Room.BroadcastRoster();
+			}
 			RigScenarios.Click("RACE SETTINGS");
 			yield return Wait(2f);
 			Rig.Shot("host_05_settings.png");
+			RigScenarios.Click("BOTS");
+			yield return Wait(1.5f);
+			Rig.Shot("host_05a_bots.png");
+			RigScenarios.Click("BACK");
+			yield return Wait(1f);
 			RigScenarios.Click("BACK");
 			yield return Wait(1f);
 			Rig.Shot("host_05b_lobby.png");
@@ -187,6 +220,12 @@ namespace Multiplayer
 			yield return RigScenarios.WaitFor(() => Room.Me.PingMs >= 0, 30f, "client: its own ping to the host is measured");
 			yield return Wait(3f);
 			Rig.Shot("client_03_waiting.png");
+			if (Rig.Arg("-mpmode") == "modbus")
+			{
+				yield return RigExtra.BusClient();
+				yield return Finish(before, false);
+				yield break;
+			}
 
 			yield return RigRace.Client();
 			if (Room.Active)
@@ -312,7 +351,7 @@ namespace Multiplayer
 				RigScenarios.Check(found.Get("hg_sum") == Checksums.Combined, "the lobby carries the mod checksum");
 				RigScenarios.Check(found.Get("hg_code") == Room.Code, "the lobby carries its code");
 				RigScenarios.Check(Room.Mismatch(found.Get("hg_mp"), found.Get("hg_sum"), found.Get("hg_mods"), found.Get("hg_game")) == null, "the mod check passes against its own lobby");
-				RigScenarios.Check(found.Max == Room.MaxPlayers, "the lobby has room for " + Room.MaxPlayers + " players");
+				RigScenarios.Check(found.Max == Room.LobbyMax, "the lobby has room for " + Room.LobbyMax + " players");
 			}
 			try
 			{

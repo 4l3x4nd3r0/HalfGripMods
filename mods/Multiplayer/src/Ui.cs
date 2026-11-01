@@ -122,6 +122,49 @@ namespace Multiplayer
 			rect.sizeDelta = size;
 		}
 
+		/// <summary>
+		/// A vertical list that scrolls with the mouse wheel and a thin bar (like the lobby chat). Rows go in <paramref name="content"/>, which is
+		/// pinned to the top centre of the list and as wide as it: a row at the top is at y 0, the next at -step, and so on. Call
+		/// <see cref="SetListHeight"/> after the rows change.
+		/// (A row's own rect uses the top centre as its corner: <c>Anchor(row, new Vector2(0.5f, 1f), new Vector2(x, -i * step), size)</c>.)
+		/// </summary>
+		internal static ScrollRect ScrollList(Transform parent, string name, Vector2 centre, Vector2 size, out RectTransform content)
+		{
+			RectTransform view = Box(name, parent, new Color(0f, 0f, 0f, 0.004f)); // nearly clear, but it takes the mouse wheel
+			view.gameObject.AddComponent<RectMask2D>();
+			Anchor(view, new Vector2(0.5f, 0.5f), centre, size);
+			content = (RectTransform)new GameObject("Content", typeof(RectTransform)).transform;
+			content.SetParent(view, false);
+			Anchor(content, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(size.x - 12f, size.y));
+
+			RectTransform track = Box("Scrollbar", view, new Color(1f, 1f, 1f, 0.06f));
+			Anchor(track, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(8f, size.y));
+			RectTransform handle = Box("Handle", track, new Color(1f, 1f, 1f, 0.35f));
+			Stretch(handle, 0f);
+			Scrollbar bar = track.gameObject.AddComponent<Scrollbar>();
+			bar.handleRect = handle;
+			bar.targetGraphic = handle.GetComponent<Image>();
+			bar.direction = Scrollbar.Direction.BottomToTop;
+
+			ScrollRect scroll = view.gameObject.AddComponent<ScrollRect>();
+			scroll.content = content;
+			scroll.viewport = view;
+			scroll.horizontal = false;
+			scroll.vertical = true;
+			scroll.movementType = ScrollRect.MovementType.Clamped;
+			scroll.scrollSensitivity = 30f;
+			scroll.verticalScrollbar = bar;
+			scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+			return scroll;
+		}
+
+		/// <summary>Sizes a <see cref="ScrollList"/>'s content to its rows (never smaller than the list, so a short list does not scroll).</summary>
+		internal static void SetListHeight(RectTransform content, float viewHeight, float rowsHeight)
+		{
+			float height = Mathf.Max(viewHeight, rowsHeight);
+			content.sizeDelta = new Vector2(content.sizeDelta.x, height);
+		}
+
 		internal static void Stretch(RectTransform rect, float margin)
 		{
 			rect.anchorMin = Vector2.zero;

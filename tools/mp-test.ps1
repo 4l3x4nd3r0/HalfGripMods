@@ -18,6 +18,11 @@
 #   trio        three players race
 #   highway     a room race on the Highway mod's map (needs the Highway mod)
 #   random      the host's MAP is RANDOM: it turns into a real map and layout when the race starts
+#   garagehost  leave the multiplayer garage and press HOST at once: the save sandbox must stay on the whole time (the 0.10.4 bug)
+#   modbus      HalfGripTools.Net between two players: room info, a registered mode, reliable and unreliable messages, size limits
+#   custom      CUSTOM mode with 14 AI cars (16 on the grid) set to HARDCORE and COMBAT: spots on the racing line, the bots' gear is what the settings say
+#   botsrandom  the same with 10 AI cars, every one rolling its own aggression and kit
+#   spectate    three players in a mode that takes two: the last to join watches from the drone, with no result line
 #   unload      switching the mod off restores the menu
 #   maps        every track has enough grid spots
 #   steam       one game, the real Steam backend: create a lobby, find it by code (creates a Steam lobby for a few seconds)
@@ -31,7 +36,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
-if ($Suite -contains "all") { $Suite = @("idle", "unload", "maps", "race", "tournament", "ai", "combat", "respawn", "hostquit", "clientquit", "mismatch", "trio", "highway", "random", "steam") }
+if ($Suite -contains "all") { $Suite = @("idle", "unload", "maps", "race", "tournament", "ai", "combat", "respawn", "hostquit", "clientquit", "mismatch", "trio", "highway", "random", "garagehost", "modbus", "custom", "botsrandom", "spectate", "steam") }
 
 function Start-Rig([string]$Name, [string]$Scenario, [string]$Label, [string]$Out, [string[]]$Mods, [string]$More, [switch]$Tamper) {
 	$rig = Join-Path $Work "game\$Name"
@@ -41,6 +46,8 @@ function Start-Rig([string]$Name, [string]$Scenario, [string]$Label, [string]$Ou
 		cmd /c mklink /J "$rig\HalfGrip_Data" "$GameDir\HalfGrip_Data" | Out-Null
 		cmd /c mklink /J "$rig\MonoBleedingEdge" "$GameDir\MonoBleedingEdge" | Out-Null
 	}
+	# the copy is made once, so its HalfGripTools would be whatever the game had then: bring it up to date every time
+	robocopy "$GameDir\BepInEx\plugins" "$rig\BepInEx\plugins" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
 	$modsDir = Join-Path $rig "BepInEx\HalfGripMods"
 	if (Test-Path $modsDir) { Remove-Item $modsDir -Recurse -Force }
 	New-Item -ItemType Directory -Force $modsDir | Out-Null
@@ -94,6 +101,10 @@ foreach ($name in $Suite) {
 		"trio"       { $mode = "race"; $labels = @("A", "B", "C"); $seconds = 420 }
 		"highway"    { $mode = "watch"; $mods = @("Multiplayer", "Highway"); $seconds = 420 }
 		"mismatch"   { $mode = "race" }
+		"modbus"     { $mode = "modbus" }
+		"custom"     { $mode = "custom"; $seconds = 480 }
+		"botsrandom" { $mode = "botsrandom"; $seconds = 480 }
+		"spectate"   { $mode = "spectate"; $labels = @("A", "B", "C"); $seconds = 480 }
 		default      { $mode = "race" }
 	}
 	switch ($name) {
@@ -102,6 +113,11 @@ foreach ($name in $Suite) {
 			$scenario = if ($name -eq "steam") { "steamsmoke" } else { $name }
 			Start-Rig "A" $scenario "A" $out $mods ""
 			Wait-Rigs $out $labels 420
+		}
+		"garagehost" {
+			$labels = @("A")
+			Start-Rig "A" "garagehost" "A" $out $mods "-mplocal 1 -mpid 101"
+			Wait-Rigs $out $labels 240
 		}
 		"mismatch" {
 			Start-Rig "A" "hostwatch" "A" $out $mods "-mplocal 1 -mpid 101"

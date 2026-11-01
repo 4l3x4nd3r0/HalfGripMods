@@ -27,6 +27,8 @@ namespace Multiplayer
 		internal bool Loaded;
 		internal bool Finished;
 		internal bool Out;
+		/// <summary>No car in this race: the room has more players than the mode takes. Not in the results.</summary>
+		internal bool Spectator;
 		internal bool Gone;
 		internal float Time;
 		internal int Grid = -1;
@@ -69,7 +71,29 @@ namespace Multiplayer
 	/// </summary>
 	internal static class Room
 	{
-		internal const int MaxPlayers = 6;
+		/// <summary>A Race, Demolition or Tournament takes 6 players.</summary>
+		internal const int RaceMax = 6;
+		/// <summary>The most any mode may ask for; sizes the lobby's rows.</summary>
+		internal const int Ceiling = 64;
+		/// <summary>The grid number of a player who has no car in this race because the mode takes fewer players than the room has.</summary>
+		internal const int SpectatorGrid = 255;
+
+		/// <summary>How many players the room takes with the mode it is set to.</summary>
+		internal static int Cap { get { return Settings == null ? RaceMax : Settings.Cap; } }
+
+		/// <summary>The size the Steam room is made with: the largest any mode needs (CUSTOM's 20, or a bigger mode a mod added).</summary>
+		internal static int LobbyMax
+		{
+			get
+			{
+				int most = RaceSettings.CustomPlayers;
+				foreach (HalfGripTools.NetMode mode in HalfGripTools.Net.Modes)
+				{
+					most = Math.Max(most, mode.MaxPlayers);
+				}
+				return Math.Min(most, Ceiling);
+			}
+		}
 
 		internal static Backend B;
 		internal static bool Active;
@@ -98,6 +122,14 @@ namespace Multiplayer
 		internal static bool SeriesOver { get { return SeriesRounds > 0 && Round >= SeriesRounds; } }
 
 		internal static bool restorePending;
+		private static bool sandboxWarned;
+
+		/// <summary>
+		/// A room exists or is being made (creating, looking for, joining). <c>Active</c> only turns true when Steam answers, and in the gap
+		/// before that the save sandbox must not be released: a player who left the garage and pressed HOST at once had it switched off
+		/// by the garage's pending restore, and the whole room then ran on the real save.
+		/// </summary>
+		internal static bool Engaged { get { return Active || Busy.Length > 0; } }
 
 		// Set when the room is left from a race or the garage, until the main menu is up. In that window the race scene is still alive:
 		// the game's own race end must not run (no "-1 life" fade, no shop scene), so scene loads other than the menu are refused.
@@ -264,9 +296,10 @@ namespace Multiplayer
 				return;
 			}
 			SaveSandbox.Enter();
+			restorePending = false; // the sandbox the garage left on now belongs to this room
 			Busy = "Creating the room...";
 			Notify();
-			B.Create(MaxPlayers, (ok, error) =>
+			B.Create(LobbyMax, (ok, error) =>
 			{
 				Busy = "";
 				if (!ok)
@@ -328,6 +361,7 @@ namespace Multiplayer
 				return;
 			}
 			SaveSandbox.Enter();
+			restorePending = false;
 			Busy = "Looking for room " + code + "...";
 			Notify();
 			B.Find(code, room =>
@@ -353,6 +387,7 @@ namespace Multiplayer
 				return;
 			}
 			SaveSandbox.Enter();
+			restorePending = false;
 			string mismatch = room.Data.Count > 0 ? Mismatch(room.Get("hg_mp"), room.Get("hg_sum"), room.Get("hg_mods"), room.Get("hg_game"), room.Get("hg_tools")) : null;
 			if (mismatch != null)
 			{
@@ -791,6 +826,9 @@ namespace Multiplayer
 						Notify();
 					}
 					break;
+				case Msg.ModData:
+					ModBus.OnData(from, r);
+					break;
 				case Msg.Car:
 					RaceSync.OnCar(from, r);
 					break;
@@ -839,6 +877,12 @@ namespace Multiplayer
 						RaceSync.OnAiDead(r);
 					}
 					break;
+				case Msg.AiRespawned:
+					if (fromHost && !IsHost)
+					{
+						RaceSync.OnAiRespawned(r);
+					}
+					break;
 				case Msg.Despawn:
 					RaceSync.OnDespawn(from);
 					break;
@@ -878,7 +922,7 @@ namespace Multiplayer
 					if (fromHost && !IsHost)
 					{
 						int n = r.U8();
-						for (int i = 0; i < n && i < MaxPlayers; i++)
+						for (int i = 0; i < n && i < Ceiling; i++)
 						{
 							Peer p = Find(r.U64());
 							int ms = r.I32();
@@ -936,7 +980,7 @@ namespace Multiplayer
 			{
 				reason = "A race is in progress. Try again when it is over.";
 			}
-			else if (Peers.Count >= MaxPlayers)
+			else if (Peers.Count >= Cap)
 			{
 				reason = "The room is full.";
 			}
@@ -987,7 +1031,7 @@ namespace Multiplayer
 			int seriesRounds = r.U8();
 			int count = r.U8();
 			List<Peer> fresh = new List<Peer>();
-			for (int i = 0; i < count && i < MaxPlayers; i++)
+			for (int i = 0; i < count && i < Ceiling; i++)
 			{
 				ulong id = r.U64();
 				Peer peer = Find(id) ?? new Peer { Id = id };
@@ -1091,24 +1135,26 @@ namespace Multiplayer
 			{
 				StartSeries(s.Rounds);
 			}
-			List<int> slots = Enumerable.Range(0, 6).OrderBy(i => random.Next()).ToList();
 			int humans = Peers.Count;
+			int cap = s.Cap;
+			int seated = Math.Min(humans, cap); // the first players to join get a car; the rest watch
+			int ai = Math.Max(0, Math.Min(s.Ai, cap - seated));
+			s.Ai = ai;
+			List<int> slots = Enumerable.Range(0, Math.Max(6, seated + ai)).OrderBy(i => random.Next()).ToList();
 			W w = new W(Msg.Start);
 			s.Write(w);
 			int seed = random.Next();
 			w.I32(seed).U8(humans);
 			for (int i = 0; i < humans; i++)
 			{
-				w.U64(Peers[i].Id).U8(slots[i]);
+				w.U64(Peers[i].Id).U8(i < seated ? slots[i] : SpectatorGrid);
 			}
-			int ai = Math.Min(s.Ai, 6 - humans);
-			s.Ai = ai;
 			w.U8(ai);
 			for (int i = 0; i < ai; i++)
 			{
-				w.U8(slots[humans + i]);
+				w.U8(slots[seated + i]);
 			}
-			Mod.Log.LogInfo("Starting a " + RaceSettings.ModeName(s.Mode) + " on " + s.Map + ", " + s.Laps + " lap(s), " + humans + " player(s), " + ai + " AI");
+			Mod.Log.LogInfo("Starting a " + s.ModeLabel() + " (takes " + cap + " players, " + seated + " seated) on " + s.Map + ", " + s.Laps + " lap(s), " + humans + " player(s), " + ai + " AI");
 			SendAll(w);
 			// The host runs the same code the clients do, on the bytes it just sent.
 			R mine = new R(w.Bytes());
@@ -1128,6 +1174,7 @@ namespace Multiplayer
 				if (p != null)
 				{
 					p.Grid = grid;
+					p.Spectator = grid == SpectatorGrid;
 				}
 			}
 			int ai = r.U8();
@@ -1146,7 +1193,7 @@ namespace Multiplayer
 				p.Ready = false;
 				p.Loaded = false;
 				p.Finished = false;
-				p.Out = false;
+				p.Out = p.Spectator;
 				p.Time = 0f;
 				p.Progress = 0f;
 				p.Place = 0;
@@ -1373,7 +1420,7 @@ namespace Multiplayer
 		{
 			// everybody who drove: the players and, from the host's own cars, the AI rivals
 			List<ResultLine> all = new List<ResultLine>();
-			foreach (Peer p in Peers)
+			foreach (Peer p in Peers.Where(q => !q.Spectator))
 			{
 				bool finishedRace = Race.Mode == RaceSettings.ModeDemolition ? !p.Out : p.Finished;
 				all.Add(new ResultLine { Id = p.Id, Name = p.Name, Time = Race.Mode == RaceSettings.ModeDemolition || p.Finished ? p.Time : 0f, BestLap = p.BestLap, Kos = p.Kos, Wos = p.Wos, Score = p.Score, Progress = p.Progress, State = finishedRace ? 0 : (p.Out ? 2 : 1) });
@@ -1462,7 +1509,7 @@ namespace Multiplayer
 			bool final = r.Bool();
 			int count = r.U8();
 			List<ResultLine> lines = new List<ResultLine>();
-			for (int i = 0; i < count && i < 12; i++)
+			for (int i = 0; i < count && i < 128; i++)
 			{
 				lines.Add(new ResultLine { Id = r.U64(), Name = CleanName(r.Str()), Time = r.F32(), BestLap = r.F32(), Kos = r.U8(), Wos = r.U8(), Score = r.F32(), Ai = r.Bool(), State = r.U8() });
 			}
@@ -1526,7 +1573,20 @@ namespace Multiplayer
 				// the menu is up: nothing is "leaving" any more. Left set, it blocked the track load of a race started within 20 s of leaving one.
 				leavingUntil = 0f;
 			}
-			if (restorePending && Flow.InMenu && !Flow.Busy)
+			// Watchdog: a room with the sandbox off must never happen. Writes are blocked anyway (SaveSandbox.Blocking); say so once in the log.
+			if (Engaged && !SaveSandbox.Active && !SaveSandbox.ReadOnly)
+			{
+				if (!sandboxWarned)
+				{
+					sandboxWarned = true;
+					Mod.Log.LogError("Save sandbox is OFF while a room is up. Saving is blocked until the room ends.");
+				}
+			}
+			else
+			{
+				sandboxWarned = false;
+			}
+			if (restorePending && Flow.InMenu && !Flow.Busy && !Engaged && !Garage.Solo)
 			{
 				restorePending = false;
 				SaveSandbox.Leave();

@@ -59,27 +59,41 @@ namespace Multiplayer
 		private Button roomGarageButton;
 		private Button leaveButton;
 		private RectTransform lockIcon;
-		private readonly Button[] kickButtons = new Button[Room.MaxPlayers];
+		private readonly Button[] kickButtons = new Button[Room.Ceiling];
 		private RectTransform resultsView;
 		private Button backToLobbyButton;
 		private TMP_Text resultsWait;
-		private readonly TMP_Text[][] resultCells = new TMP_Text[Room.MaxPlayers][];
-		private readonly GameObject[] resultRows = new GameObject[Room.MaxPlayers];
+		private readonly TMP_Text[][] resultCells = new TMP_Text[Room.Ceiling][];
+		private readonly GameObject[] resultRows = new GameObject[Room.Ceiling];
 		private TMP_Text startTip;
-		private readonly TMP_Text[] memberNames = new TMP_Text[Room.MaxPlayers];
-		private readonly TMP_Text[] memberTags = new TMP_Text[Room.MaxPlayers];
-		private readonly TMP_Text[] memberTotals = new TMP_Text[Room.MaxPlayers];
-		private readonly TMP_Text[] memberPings = new TMP_Text[Room.MaxPlayers];
-		private readonly Image[][] memberBars = new Image[Room.MaxPlayers][];
-		private readonly Image[][] memberPaint = new Image[Room.MaxPlayers][];
+		private readonly TMP_Text[] memberNames = new TMP_Text[Room.Ceiling];
+		private readonly TMP_Text[] memberTags = new TMP_Text[Room.Ceiling];
+		private readonly TMP_Text[] memberTotals = new TMP_Text[Room.Ceiling];
+		private readonly TMP_Text[] memberPings = new TMP_Text[Room.Ceiling];
+		private readonly Image[][] memberBars = new Image[Room.Ceiling][];
+		private readonly Image[][] memberPaint = new Image[Room.Ceiling][];
 		private RectTransform chatBox;
 		private ScrollRect chatScroll;
 		private TMP_Text chatLog;
 		private TMP_InputField chatField;
 		private TMP_Text resultsInfo;
 		private TMP_Text totalTitle;
-		private readonly GameObject[] memberRows = new GameObject[Room.MaxPlayers];
+		private readonly GameObject[] memberRows = new GameObject[Room.Ceiling];
 		private readonly List<SettingRow> settingRows = new List<SettingRow>();
+		private readonly List<SettingRow> botRows = new List<SettingRow>();
+		private RectTransform botsView;
+		private bool showBots;
+		private TMP_Text botsInfo;
+		private TMP_Text gridWarning;
+		private ScrollRect memberScroll;
+		private RectTransform memberContent;
+		private int builtMembers;
+		private ScrollRect resultScroll;
+		private RectTransform resultContent;
+		private int builtResults;
+		// the players' list: from the left edge of the player bar to the right edge of KICK, six rows tall; more players scroll
+		private const float MemberViewX = 134f, MemberViewY = -5f, MemberViewW = 1124f, MemberViewH = 366f;
+		private const float ResultViewY = -3f, ResultViewH = 494f;
 
 		internal static GameObject Build(MainMenu owner)
 		{
@@ -174,6 +188,7 @@ namespace Multiplayer
 
 		// One grid for the room: four buttons along the bottom (their outer edges are the list's edges), the code up top.
 		private const float ButtonY = -340f;
+		private const float SettingsButtonY = -385f; // RACE SETTINGS and BOT SETTINGS: lower than the room's, so the grid warning fits under seven rows
 		private static readonly float[] ButtonX = { -570f, -190f, 190f, 570f };
 		private const float RowLeft = -428f; // the player bar's left edge; the chat ends at the right edge of LEAVE ROOM (-444)
 		private const float GridLeft = -696f;
@@ -197,12 +212,31 @@ namespace Multiplayer
 			const float rowWidth = 858f; // to the right edge of INVITE FRIENDS (430)
 			float rowCentre = RowLeft + rowWidth / 2f;
 			roomLine = Ui.Label(inside, "", 28f, Ui.Soft, TextAlignmentOptions.MidlineLeft, new Vector2(0.5f, 0.5f), new Vector2(rowCentre, 205f), new Vector2(rowWidth, 36f));
-			for (int i = 0; i < Room.MaxPlayers; i++)
+			memberScroll = Ui.ScrollList(inside, "Members", new Vector2(MemberViewX, MemberViewY), new Vector2(MemberViewW, MemberViewH), out memberContent);
+			EnsureMemberRows(6);
+
+			// the buttons, left to right
+			leaveButton = Big(inside, "LEAVE ROOM", 6.5f, new Vector2(ButtonX[0], ButtonY), () => Back());
+			roomGarageButton = Big(inside, "GARAGE", 8.5f, new Vector2(ButtonX[1], ButtonY), () => Garage.EnterSolo());
+			// everybody can look at the race settings (only the host can change them)
+			settingsButton = Big(inside, "RACE SETTINGS", 6.5f, new Vector2(ButtonX[2], ButtonY), () => { showSettings = true; Refresh(); });
+			readyButton = Big(inside, "READY", 7f, new Vector2(ButtonX[3], ButtonY), () => Garage.OnStartButton());
+			startButton = Big(inside, "START RACE", 7f, new Vector2(ButtonX[3], ButtonY), () => Room.StartRace());
+			startTip = Ui.Label(inside, "", 28f, Ui.Amber, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
+			HoverTip.Attach(startButton, startTip, () => Room.AllReady ? "" : "Not all players are ready.");
+			waitText = Ui.Label(inside, "", 28f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
+		}
+
+		/// <summary>Builds player rows up to <paramref name="count"/> (they are made when a room first needs them, up to the lobby's ceiling).</summary>
+		private void EnsureMemberRows(int count)
+		{
+			const float rowWidth = 858f; // to the right edge of INVITE FRIENDS (430)
+			float rowCentre = RowLeft + rowWidth / 2f;
+			for (int i = builtMembers; i < count && i < Room.Ceiling; i++)
 			{
 				int index = i;
-				float y = 150f - i * 62f;
-				RectTransform row = Ui.Box("Member " + i, inside, new Color(0.13f, 0.13f, 0.13f, 1f));
-				Ui.Anchor(row, new Vector2(0.5f, 0.5f), new Vector2(rowCentre, y), new Vector2(rowWidth, 56f));
+				RectTransform row = Ui.Box("Member " + i, memberContent, new Color(0.13f, 0.13f, 0.13f, 1f));
+				Ui.Anchor(row, new Vector2(0.5f, 1f), new Vector2(rowCentre - MemberViewX, -i * 62f), new Vector2(rowWidth, 56f));
 				memberRows[i] = row.gameObject;
 				memberBars[i] = new Image[4];
 				for (int k = 0; k < 4; k++)
@@ -229,21 +263,15 @@ namespace Multiplayer
 					memberPaint[i][k].raycastTarget = false;
 				}
 				memberTotals[i] = Ui.Label(row, "", 30f, Ui.Soft, TextAlignmentOptions.MidlineRight, new Vector2(0f, 0.5f), new Vector2(690f, 0f), new Vector2(160f, 52f));
-				// KICK and LOCK ROOM sit in line with the rows, after the bar, ending where START RACE ends
-				kickButtons[i] = Badge(inside, "KICK", new Vector2(568f, y), new Vector2(256f, 56f), () => KickRow(index));
+				// KICK ends where START RACE ends: it sits on the row (so it scrolls with it), after the bar
+				kickButtons[i] = Badge(row, "KICK", new Vector2(rowWidth / 2f + 138f, 0f), new Vector2(256f, 56f), () => KickRow(index));
+				if (i == 0)
+				{
+					// the host is always the first row and has no KICK of its own: LOCK ROOM takes that place, in line with the host's bar
+					lockButton = Badge(row, "LOCK ROOM", new Vector2(rowWidth / 2f + 138f, 0f), new Vector2(256f, 56f), () => Room.SetLocked(!Room.Locked));
+				}
+				builtMembers++;
 			}
-			lockButton = Badge(inside, "LOCK ROOM", new Vector2(568f, 150f), new Vector2(256f, 56f), () => Room.SetLocked(!Room.Locked));
-
-			// the buttons, left to right
-			leaveButton = Big(inside, "LEAVE ROOM", 6.5f, new Vector2(ButtonX[0], ButtonY), () => Back());
-			roomGarageButton = Big(inside, "GARAGE", 8.5f, new Vector2(ButtonX[1], ButtonY), () => Garage.EnterSolo());
-			// everybody can look at the race settings (only the host can change them)
-			settingsButton = Big(inside, "RACE SETTINGS", 6.5f, new Vector2(ButtonX[2], ButtonY), () => { showSettings = true; Refresh(); });
-			readyButton = Big(inside, "READY", 7f, new Vector2(ButtonX[3], ButtonY), () => Garage.OnStartButton());
-			startButton = Big(inside, "START RACE", 7f, new Vector2(ButtonX[3], ButtonY), () => Room.StartRace());
-			startTip = Ui.Label(inside, "", 28f, Ui.Amber, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
-			HoverTip.Attach(startButton, startTip, () => Room.AllReady ? "" : "Not all players are ready.");
-			waitText = Ui.Label(inside, "", 28f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
 		}
 
 		/// <summary>A small pixel padlock next to the room code, shown while the host has the room locked.</summary>
@@ -283,10 +311,10 @@ namespace Multiplayer
 			MapDefinition Map() { return Garage.FindMap(Room.Settings.Map); }
 			AddRow(view, 0, "MAP", () => Room.Settings.Map == RaceSettings.RandomMap ? "RANDOM" : Garage.MapLabel(Map()), () => CycleMap(-1), () => CycleMap(1));
 			AddRow(view, 0, "LAYOUT", () => VariantName(Room.Settings.Variant), () => CycleVariant(-1), () => CycleVariant(1), () => Garage.Variants(Map()).Count > 1);
-			AddRow(view, 0, "MODE", () => RaceSettings.ModeName(Room.Settings.Mode), () => ChangeMode(), () => ChangeMode());
+			AddRow(view, 0, "MODE", () => Room.Settings.ModeLabel(), () => ChangeMode(-1), () => ChangeMode(1));
 			AddRow(view, 0, "RACES", () => Room.Settings.Rounds.ToString(), () => Edit(s => s.Rounds = RaceSettings.Clamp(s.Rounds - 1, 2, 10)), () => Edit(s => s.Rounds = RaceSettings.Clamp(s.Rounds + 1, 2, 10)), () => Room.Settings.Mode == RaceSettings.ModeTournament);
-			AddRow(view, 0, "LAPS", () => Room.Settings.Laps.ToString(), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps - 1, 1, 10)), () => Edit(s => s.Laps = RaceSettings.Clamp(s.Laps + 1, 1, 10)), () => Room.Settings.RaceLike);
-			AddRow(view, 0, "AI RIVALS", () => Room.Settings.Ai.ToString(), () => Edit(s => s.Ai = RaceSettings.Clamp(s.Ai - 1, 0, 6 - Room.Peers.Count)), () => Edit(s => s.Ai = RaceSettings.Clamp(s.Ai + 1, 0, 6 - Room.Peers.Count)));
+			AddRow(view, 0, "LAPS", () => Room.Settings.Laps.ToString(), () => Edit(s => s.Laps = StepLaps(s, -1)), () => Edit(s => s.Laps = StepLaps(s, 1)), () => Room.Settings.RaceLike);
+			AddRow(view, 0, "AI RIVALS", () => Room.Settings.Ai.ToString(), () => Edit(s => s.Ai = RaceSettings.Clamp(s.Ai - 1, 0, AiMax(s))), () => Edit(s => s.Ai = RaceSettings.Clamp(s.Ai + 1, 0, AiMax(s))));
 			AddRow(view, 0, "WRECKED", () => Room.Settings.Mode == RaceSettings.ModeDemolition ? "OUT" : Room.Settings.Wreck == RaceSettings.WreckRespawn ? "RESPAWN" : "OUT, WATCH", () => Edit(s => s.Wreck = 1 - s.Wreck), () => Edit(s => s.Wreck = 1 - s.Wreck), () => Room.Settings.RaceLike);
 			AddRow(view, 0, "RESPAWN IN", () => Room.Settings.RespawnSeconds.ToString("0") + " S", () => Edit(s => s.RespawnSeconds = RaceSettings.Clamp(s.RespawnSeconds - 1f, 2f, 30f)), () => Edit(s => s.RespawnSeconds = RaceSettings.Clamp(s.RespawnSeconds + 1f, 2f, 30f)), () => Room.Settings.RaceLike && Room.Settings.Wreck == RaceSettings.WreckRespawn);
 
@@ -299,11 +327,61 @@ namespace Multiplayer
 
 			// the example sits with the damage settings it explains
 			revolverText = Ui.Label(view, "", 28f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft1 + 355f, -215f), new Vector2(710f, 90f));
-			Big(view, "BACK", 8.5f, new Vector2(ButtonX[0], ButtonY), () => { showSettings = false; Refresh(); });
+			gridWarning = Ui.Label(view, "", 24f, Orange, TextAlignmentOptions.TopLeft, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft0 + 355f, 0f), new Vector2(710f, 84f));
+			Big(view, "BACK", 8.5f, new Vector2(ButtonX[0], SettingsButtonY), () => { showSettings = false; Refresh(); });
+			Big(view, "BOTS", 8.5f, new Vector2(ButtonX[3], SettingsButtonY), () => { showBots = true; Refresh(); });
+			view.gameObject.SetActive(false);
+			BuildBots(root, headerTemplate);
+		}
+
+		/// <summary>The bots' own view: how aggressive they drive and shoot, how they are kitted, and whether they are all alike.</summary>
+		private void BuildBots(Transform root, GameObject headerTemplate)
+		{
+			RectTransform view = Ui.Box("Bots", root, Color.black);
+			Ui.Stretch(view, 0f);
+			botsView = view;
+			GameObject header = Instantiate(headerTemplate, view, false);
+			header.name = "Header";
+			header.GetComponent<TMP_Text>().text = "BOT SETTINGS";
+			Ui.Label(view, "BOTS", 44f, Ui.Amber, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft0 + 355f, 300f), new Vector2(710f, 56f));
+			Ui.Label(view, "WHAT THEY DO", 44f, Ui.Amber, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft1 + 355f, 300f), new Vector2(710f, 56f));
+			AddRow(view, 0, "AGGRESSION", () => Bots.AggressionName(Room.Settings.Aggression), () => Edit(s => s.Aggression = (s.Aggression + Bots.AggressionSteps - 1) % Bots.AggressionSteps), () => Edit(s => s.Aggression = (s.Aggression + 1) % Bots.AggressionSteps), null, botRows);
+			AddRow(view, 0, "KIT", () => Bots.KitName(Room.Settings.Kit), () => Edit(s => s.Kit = (s.Kit + Bots.KitCount - 1) % Bots.KitCount), () => Edit(s => s.Kit = (s.Kit + 1) % Bots.KitCount), null, botRows);
+			AddRow(view, 0, "RUN STAGE", () => Bots.StageName(Room.Settings.Stage), () => Edit(s => s.Stage = (s.Stage + 2) % 3), () => Edit(s => s.Stage = (s.Stage + 1) % 3), () => Room.Settings.Kit == Bots.KitLikeARun, botRows);
+			AddRow(view, 0, "SPREAD", () => Bots.SpreadName(Room.Settings.Spread), () => Edit(s => s.Spread = (s.Spread + 2) % 3), () => Edit(s => s.Spread = (s.Spread + 1) % 3), null, botRows);
+			AddRow(view, 0, "MIXED BY", () => Room.Settings.SpreadSteps + (Room.Settings.SpreadSteps == 1 ? " STEP" : " STEPS"), () => Edit(s => s.SpreadSteps = 3 - s.SpreadSteps), () => Edit(s => s.SpreadSteps = 3 - s.SpreadSteps), () => Room.Settings.Spread == Bots.SpreadMixed, botRows);
+			botsInfo = Ui.Label(view, "", 30f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft1 + 355f, 10f), new Vector2(710f, 470f)); // top at 245: under the WHAT THEY DO header (bottom at 272)
+			Big(view, "BACK", 8.5f, new Vector2(ButtonX[0], SettingsButtonY), () => { showBots = false; Refresh(); });
 			view.gameObject.SetActive(false);
 		}
 
-		private void AddRow(Transform parent, int column, string label, Func<string> get, Action dec, Action inc, Func<bool> visible = null)
+		/// <summary>
+		/// The maps have six grid spots (the player's and five more). A CUSTOM race with more cars than that puts the rest in a queue behind the
+		/// start along the racing line, which some maps are too narrow or too short for. Empty when there is nothing to say (or a mode's own mod places the cars).
+		/// </summary>
+		internal static string GridWarning(RaceSettings s)
+		{
+			if (s == null || (s.ModDef != null && s.ModDef.SpawnPoint != null))
+			{
+				return "";
+			}
+			int cars = Math.Min(Room.Peers.Count, s.Cap) + s.Ai;
+			return cars > Room.RaceMax ? Tx.T("WARNING!") + "\n" + Tx.T("Not all maps are designed with more than 6 cars in mind. Bugs may arise. Proceed with caution!") : "";
+		}
+
+		private static int AiMax(RaceSettings s)
+		{
+			return Math.Max(0, s.Cap - Room.Peers.Count);
+		}
+
+		/// <summary>Laps one at a time up to 10, then by five (a CUSTOM race goes to 100).</summary>
+		private static int StepLaps(RaceSettings s, int direction)
+		{
+			int step = direction > 0 ? (s.Laps >= 10 && s.MaxLaps > 10 ? 5 : 1) : (s.Laps > 10 ? 5 : 1);
+			return RaceSettings.Clamp(s.Laps + direction * step, 1, s.MaxLaps);
+		}
+
+		private void AddRow(Transform parent, int column, string label, Func<string> get, Action dec, Action inc, Func<bool> visible = null, List<SettingRow> into = null)
 		{
 			RectTransform row = (RectTransform)new GameObject("Row " + label, typeof(RectTransform)).transform;
 			row.SetParent(parent, false);
@@ -312,7 +390,7 @@ namespace Multiplayer
 			Button decButton = Arrow(row, "<", new Vector2(-15f, 0f), () => dec());
 			TMP_Text value = Ui.Label(row, "", 36f, Ui.Amber, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(155f, 0f), new Vector2(240f, 56f));
 			Button incButton = Arrow(row, ">", new Vector2(325f, 0f), () => inc());
-			settingRows.Add(new SettingRow { Root = row, Value = value, Get = get, Visible = visible, Column = column, Arrows = new[] { decButton, incButton } });
+			(into ?? settingRows).Add(new SettingRow { Root = row, Value = value, Get = get, Visible = visible, Column = column, Arrows = new[] { decButton, incButton } });
 		}
 
 		private static string Percent(float v) { return Mathf.RoundToInt(v * 100f) + "%"; }
@@ -359,10 +437,30 @@ namespace Multiplayer
 			Edit(s => s.Variant = next);
 		}
 
-		private static void ChangeMode()
+		/// <summary>RACE, TOURNAMENT, DEMOLITION, CUSTOM, then the modes other mods added; the arrows go either way round.</summary>
+		private static void ChangeMode(int direction)
 		{
-			// RACE -> TOURNAMENT -> DEMOLITION -> RACE, the same order either arrow
-			Edit(s => s.Mode = s.Mode == RaceSettings.ModeRace ? RaceSettings.ModeTournament : s.Mode == RaceSettings.ModeTournament ? RaceSettings.ModeDemolition : RaceSettings.ModeRace);
+			List<KeyValuePair<int, string>> options = new List<KeyValuePair<int, string>>
+			{
+				new KeyValuePair<int, string>(RaceSettings.ModeRace, ""),
+				new KeyValuePair<int, string>(RaceSettings.ModeTournament, ""),
+				new KeyValuePair<int, string>(RaceSettings.ModeDemolition, ""),
+				new KeyValuePair<int, string>(RaceSettings.ModeCustom, "")
+			};
+			foreach (HalfGripTools.NetMode mode in HalfGripTools.Net.Modes)
+			{
+				options.Add(new KeyValuePair<int, string>(RaceSettings.ModeMod, mode.Id));
+			}
+			RaceSettings now = Room.Settings;
+			int at = options.FindIndex(o => o.Key == now.Mode && (o.Key != RaceSettings.ModeMod || o.Value == now.ModeId));
+			KeyValuePair<int, string> next = options[((at < 0 ? 0 : at) + direction + options.Count) % options.Count];
+			Edit(s =>
+			{
+				s.Mode = next.Key;
+				s.ModeId = next.Value;
+				s.Laps = RaceSettings.Clamp(s.Laps, 1, s.MaxLaps);
+				s.Ai = RaceSettings.Clamp(s.Ai, 0, AiMax(s)); // players over the new cap start the race as spectators
+			});
 		}
 
 		/// <summary>The main-menu style red button: a copy of QUIT with its own text and action.</summary>
@@ -463,11 +561,19 @@ namespace Multiplayer
 				}
 			}
 			resultsInfo = Ui.Label(view, "", 33f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(0f, 340f), new Vector2(1400f, 44f));
-			for (int i = 0; i < Room.MaxPlayers; i++)
+			resultScroll = Ui.ScrollList(view, "Rows", new Vector2(0f, ResultViewY), new Vector2(1800f, ResultViewH), out resultContent);
+			Big(view, "LEAVE ROOM", 6.5f, new Vector2(ButtonX[0], ButtonY), () => Back());
+			backToLobbyButton = Big(view, "BACK TO LOBBY", 6.5f, new Vector2(ButtonX[3], ButtonY), () => Room.BackToLobby());
+			resultsWait = Ui.Label(view, "The host takes everybody back to the lobby.", 28f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3] - 80f, ButtonY - 100f), new Vector2(700f, 40f));
+			view.gameObject.SetActive(false);
+		}
+
+		private void EnsureResultRows(int count)
+		{
+			for (int i = builtResults; i < count && i < Room.Ceiling; i++)
 			{
-				float y = 215f - i * 66f;
-				RectTransform row = Ui.Box("Result " + i, view, new Color(0.13f, 0.13f, 0.13f, 1f));
-				Ui.Anchor(row, new Vector2(0.5f, 0.5f), new Vector2(0f, y), new Vector2(1500f, 58f));
+				RectTransform row = Ui.Box("Result " + i, resultContent, new Color(0.13f, 0.13f, 0.13f, 1f));
+				Ui.Anchor(row, new Vector2(0.5f, 1f), new Vector2(0f, -i * 66f), new Vector2(1500f, 58f));
 				resultRows[i] = row.gameObject;
 				resultCells[i] = new TMP_Text[ResultX.Length];
 				for (int c = 0; c < ResultX.Length; c++)
@@ -475,11 +581,8 @@ namespace Multiplayer
 					TextAlignmentOptions align = c == 1 ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
 					resultCells[i][c] = Ui.Label(row, "", 38f, Orange, align, new Vector2(0.5f, 0.5f), new Vector2(ResultX[c], 0f), new Vector2(CellWidth(c), 54f));
 				}
+				builtResults++;
 			}
-			Big(view, "LEAVE ROOM", 6.5f, new Vector2(ButtonX[0], ButtonY), () => Back());
-			backToLobbyButton = Big(view, "BACK TO LOBBY", 6.5f, new Vector2(ButtonX[3], ButtonY), () => Room.BackToLobby());
-			resultsWait = Ui.Label(view, "The host takes everybody back to the lobby.", 28f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3] - 80f, ButtonY - 100f), new Vector2(700f, 40f));
-			view.gameObject.SetActive(false);
 		}
 
 		private static string Clock(float seconds)
@@ -498,9 +601,11 @@ namespace Multiplayer
 			totalTitle.gameObject.SetActive(tournament);
 			Peer leader = Room.SeriesLeader();
 			resultsInfo.text = !tournament ? "" : Room.SeriesOver && leader != null ? Tx.F("TOURNAMENT OVER: {0} WINS WITH {1}", leader.Name.ToUpperInvariant(), Mathf.RoundToInt(leader.Total)) : Tx.F("RACE {0} OF {1}", Math.Min(Room.Round + (Room.Phase == Phase.Results ? 0 : 1), Room.SeriesRounds), Room.SeriesRounds);
-			for (int i = 0; i < Room.MaxPlayers; i++)
+			EnsureResultRows(Room.Results.Count);
+			Ui.SetListHeight(resultContent, ResultViewH, Room.Results.Count * 66f);
+			for (int i = 0; i < builtResults; i++)
 			{
-				bool has = i < Room.Results.Count && i < Room.MaxPlayers;
+				bool has = i < Room.Results.Count;
 				resultRows[i].SetActive(has);
 				if (!has)
 				{
@@ -723,6 +828,12 @@ namespace Multiplayer
 				ShowFriends(false);
 				return;
 			}
+			if (showBots)
+			{
+				showBots = false;
+				Refresh();
+				return;
+			}
 			if (showSettings)
 			{
 				showSettings = false;
@@ -743,6 +854,7 @@ namespace Multiplayer
 		private void OnEnable()
 		{
 			showSettings = false;
+			showBots = false;
 			Refresh();
 		}
 
@@ -765,11 +877,13 @@ namespace Multiplayer
 			if (!inRoom || Room.Phase != Phase.Lobby)
 			{
 				showSettings = false;
+				showBots = false;
 			}
 			home.gameObject.SetActive(!inRoom);
 			bool results = inRoom && (Room.Phase == Phase.Results || Room.ViewingResults);
 			inside.gameObject.SetActive(inRoom && !showSettings && !results);
-			settingsView.gameObject.SetActive(showSettings);
+			settingsView.gameObject.SetActive(showSettings && !showBots);
+			botsView.gameObject.SetActive(showSettings && showBots);
 			resultsView.gameObject.SetActive(results);
 			bool idle = Room.Busy.Length == 0;
 			hostButton.interactable = idle;
@@ -798,12 +912,21 @@ namespace Multiplayer
 			}
 			if (showSettings)
 			{
-				RefreshSettings();
+				if (showBots)
+				{
+					RefreshBots();
+				}
+				else
+				{
+					RefreshSettings();
+				}
 				return;
 			}
 			string code = Room.Code ?? "";
 			codeText.text = code.Length == 6 ? code.Substring(0, 3) + " " + code.Substring(3) : code;
-			for (int i = 0; i < Room.MaxPlayers; i++)
+			EnsureMemberRows(Room.Peers.Count);
+			Ui.SetListHeight(memberContent, MemberViewH, Room.Peers.Count * 62f);
+			for (int i = 0; i < builtMembers; i++)
 			{
 				bool has = i < Room.Peers.Count;
 				memberRows[i].SetActive(has);
@@ -845,7 +968,7 @@ namespace Multiplayer
 					}
 				}
 			}
-			string players = Tx.F("PLAYERS {0} / {1}", Room.Peers.Count, Room.MaxPlayers);
+			string players = Tx.F("PLAYERS {0} / {1}", Room.Peers.Count, Room.Cap);
 			string seriesLine = Room.SeriesText();
 			roomLine.text = seriesLine.Length > 0 ? players + "     " + seriesLine : players;
 			lockIcon.gameObject.SetActive(Room.Locked);
@@ -867,8 +990,24 @@ namespace Multiplayer
 
 		private void RefreshSettings()
 		{
+			int[] used = LayoutRows(settingRows);
+			gridWarning.text = GridWarning(Room.Settings);
+			// under the last visible row of the RACE column
+			float top = RowTop - used[0] * RowStep + RowStep / 2f - 12f;
+			gridWarning.rectTransform.anchoredPosition = new Vector2(ColumnLeft0 + 355f, top - 42f);
+			revolverText.text = "EXAMPLE\n" + Pvp.RevolverInfo(Room.Settings);
+		}
+
+		private void RefreshBots()
+		{
+			LayoutRows(botRows);
+			botsInfo.text = Bots.Describe(Room.Settings);
+		}
+
+		private int[] LayoutRows(List<SettingRow> rows)
+		{
 			int[] used = new int[2];
-			foreach (SettingRow row in settingRows)
+			foreach (SettingRow row in rows)
 			{
 				bool show = row.Visible == null || row.Visible();
 				row.Root.gameObject.SetActive(show);
@@ -884,7 +1023,7 @@ namespace Multiplayer
 					used[row.Column]++;
 				}
 			}
-			revolverText.text = "EXAMPLE\n" + Pvp.RevolverInfo(Room.Settings);
+			return used;
 		}
 	}
 }

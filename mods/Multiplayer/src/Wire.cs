@@ -36,7 +36,9 @@ namespace Multiplayer
 		Pong = 28,
 		Pings = 29,
 		Chat = 30,
-		Skin = 31
+		Skin = 31,
+		ModData = 32,
+		AiRespawned = 33
 	}
 
 	/// <summary>Writes one packet.</summary>
@@ -68,6 +70,13 @@ namespace Multiplayer
 		}
 		internal W Vec(Vector3 v) { writer.Write(v.x); writer.Write(v.y); writer.Write(v.z); return this; }
 		internal W Rot(Quaternion q) { writer.Write(q.x); writer.Write(q.y); writer.Write(q.z); writer.Write(q.w); return this; }
+		internal W Raw(byte[] v)
+		{
+			byte[] bytes = v ?? new byte[0];
+			writer.Write(bytes.Length);
+			writer.Write(bytes);
+			return this;
+		}
 		internal byte[] Bytes() { writer.Flush(); return stream.ToArray(); }
 	}
 
@@ -94,6 +103,15 @@ namespace Multiplayer
 		internal ulong U64() { return reader.ReadUInt64(); }
 		internal float F32() { return reader.ReadSingle(); }
 		internal string Str() { return reader.ReadString(); }
+		internal byte[] Raw()
+		{
+			int n = reader.ReadInt32();
+			if (n < 0 || n > 4000)
+			{
+				throw new InvalidDataException("bad length");
+			}
+			return reader.ReadBytes(n);
+		}
 		internal Vector3 Vec() { return new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()); }
 		internal Quaternion Rot() { return new Quaternion(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()); }
 	}

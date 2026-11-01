@@ -10,6 +10,10 @@ namespace Multiplayer
 		internal const int ModeRace = 0;
 		internal const int ModeDemolition = 1;
 		internal const int ModeTournament = 2;
+		/// <summary>Up to 20 racers, up to 100 laps; what a game mode from another mod builds on.</summary>
+		internal const int ModeCustom = 3;
+		/// <summary>A mode another mod registered through HalfGripTools.Net; <see cref="ModeId"/> says which.</summary>
+		internal const int ModeMod = 4;
 		internal const int WreckSpectate = 0;
 		internal const int WreckRespawn = 1;
 
@@ -25,6 +29,18 @@ namespace Multiplayer
 		internal int Ai;
 		internal int Wreck = WreckSpectate;
 		internal float RespawnSeconds = 5f;
+		internal string ModeId = "";
+
+		// The bots (host only): how aggressive, how they are kitted, and whether they are all the same.
+		/// <summary>0 NORMAL, 1 +25%, 2 HARDCORE, 3 +75%, 4 ULTRA.</summary>
+		internal int Aggression;
+		/// <summary>A <see cref="Bots"/> kit: starter, half kitted, fully kitted, speed demons, combat, like a run, random.</summary>
+		internal int Kit;
+		/// <summary>For the LIKE A RUN kit: 0 early, 1 middle, 2 late.</summary>
+		internal int Stage = 1;
+		/// <summary>0 SAME for every bot, 1 MIXED (within <see cref="SpreadSteps"/> of the choice), 2 RANDOM (every bot rolls its own).</summary>
+		internal int Spread;
+		internal int SpreadSteps = 1;
 
 		// Multipliers on the damage the same hit would do to an AI car. 0.5 = half.
 		internal float Gun = 0.5f;
@@ -36,8 +52,53 @@ namespace Multiplayer
 
 		internal static string ModeName(int mode)
 		{
-			return mode == ModeDemolition ? "DEMOLITION" : mode == ModeTournament ? "TOURNAMENT" : "RACE";
+			return mode == ModeDemolition ? "DEMOLITION" : mode == ModeTournament ? "TOURNAMENT" : mode == ModeCustom ? "CUSTOM" : "RACE";
 		}
+
+		/// <summary>The name for the MODE row: a mod's mode shows the name the mod gave it.</summary>
+		internal string ModeLabel()
+		{
+			HalfGripTools.NetMode def = ModDef;
+			return Mode == ModeMod ? (def == null ? ModeId.ToUpperInvariant() : def.Name.ToUpperInvariant()) : ModeName(Mode);
+		}
+
+		/// <summary>The registered mode this room plays, or null.</summary>
+		internal HalfGripTools.NetMode ModDef
+		{
+			get { return Mode == ModeMod ? HalfGripTools.Net.Modes.FirstOrDefault(m => m.Id == ModeId) : null; }
+		}
+
+		/// <summary>The id the mods see (<c>HalfGripTools.Net.ModeId</c>): race, demolition, tournament, custom or the mod's own.</summary>
+		internal string PublicModeId()
+		{
+			return Mode == ModeMod ? ModeId : Mode == ModeDemolition ? "demolition" : Mode == ModeTournament ? "tournament" : Mode == ModeCustom ? "custom" : "race";
+		}
+
+		/// <summary>How many players the room takes in this mode.</summary>
+		internal int Cap
+		{
+			get
+			{
+				if (Mode == ModeCustom)
+				{
+					return CustomPlayers;
+				}
+				HalfGripTools.NetMode def = ModDef;
+				return def == null ? Room.RaceMax : Clamp(def.MaxPlayers, 2, Room.Ceiling);
+			}
+		}
+
+		/// <summary>The most laps the host can set in this mode.</summary>
+		internal int MaxLaps
+		{
+			get
+			{
+				HalfGripTools.NetMode def = ModDef;
+				return Mode == ModeCustom ? 100 : def != null ? Clamp(def.MaxLaps, 1, 100) : 10;
+			}
+		}
+
+		internal const int CustomPlayers = 20;
 
 		/// <summary>A tournament is a series of ordinary races: laps, finishing order and the wreck rule all apply.</summary>
 		internal bool RaceLike { get { return Mode != ModeDemolition; } }
@@ -51,6 +112,7 @@ namespace Multiplayer
 		{
 			w.Str(Map).I32(Variant).I32(Laps).U8(Mode).U8(Rounds).U8(Ai).U8(Wreck).F32(RespawnSeconds);
 			w.F32(Gun).F32(Explosion).F32(Item).F32(Ram).F32(AiGun).Bool(Tires);
+			w.Str(ModeId).U8(Aggression).U8(Kit).U8(Stage).U8(Spread).U8(SpreadSteps);
 		}
 
 		internal static RaceSettings Read(R r)
@@ -58,11 +120,11 @@ namespace Multiplayer
 			RaceSettings s = new RaceSettings();
 			s.Map = r.Str();
 			s.Variant = r.I32();
-			s.Laps = Clamp(r.I32(), 1, 20);
+			s.Laps = Clamp(r.I32(), 1, 100);
 			int mode = r.U8();
-			s.Mode = mode == ModeDemolition ? ModeDemolition : mode == ModeTournament ? ModeTournament : ModeRace;
+			s.Mode = mode == ModeDemolition || mode == ModeTournament || mode == ModeCustom || mode == ModeMod ? mode : ModeRace;
 			s.Rounds = Clamp(r.U8(), 2, 10);
-			s.Ai = Clamp(r.U8(), 0, 5);
+			s.Ai = Clamp(r.U8(), 0, Room.Ceiling - 1);
 			s.Wreck = r.U8() == WreckRespawn ? WreckRespawn : WreckSpectate;
 			s.RespawnSeconds = Clamp(r.F32(), 1f, 60f);
 			s.Gun = Clamp(r.F32(), 0f, 10f);
@@ -71,6 +133,16 @@ namespace Multiplayer
 			s.Ram = Clamp(r.F32(), 0f, 10f);
 			s.AiGun = Clamp(r.F32(), 0f, 10f);
 			s.Tires = r.Bool();
+			s.ModeId = r.Str();
+			if (s.Mode == ModeMod && s.ModDef == null)
+			{
+				s.Mode = ModeRace; // this machine does not have that mode (it should: the room's mods match)
+			}
+			s.Aggression = Clamp(r.U8(), 0, Bots.AggressionSteps - 1);
+			s.Kit = Clamp(r.U8(), 0, Bots.KitCount - 1);
+			s.Stage = Clamp(r.U8(), 0, 2);
+			s.Spread = Clamp(r.U8(), 0, 2);
+			s.SpreadSteps = Clamp(r.U8(), 1, 2);
 			return s;
 		}
 
@@ -95,6 +167,11 @@ namespace Multiplayer
 		private static ConfigEntry<int> ai;
 		private static ConfigEntry<int> wreck;
 		private static ConfigEntry<float> respawn;
+		private static ConfigEntry<int> aggression;
+		private static ConfigEntry<int> kit;
+		private static ConfigEntry<int> stage;
+		private static ConfigEntry<int> spread;
+		private static ConfigEntry<int> spreadSteps;
 
 		internal static void Bind(ConfigFile config)
 		{
@@ -109,6 +186,11 @@ namespace Multiplayer
 			ai = config.Bind("Room", "AiRivals", 0, "AI rivals to fill the grid with, 0 to 5, as the host.");
 			wreck = config.Bind("Room", "WreckRule", 0, "0 = a wrecked player is out and watches, 1 = respawns after a delay. As the host.");
 			respawn = config.Bind("Room", "RespawnSeconds", 5f, "Seconds until a wrecked player respawns, when the wreck rule is 1.");
+			aggression = config.Bind("Bots", "Aggression", 0, "0 normal, 1 +25%, 2 hardcore, 3 +75%, 4 ultra. As the host.");
+			kit = config.Bind("Bots", "Kit", 0, "0 starter, 1 half kitted, 2 fully kitted, 3 speed demons, 4 combat, 5 like a run, 6 random. As the host.");
+			stage = config.Bind("Bots", "RunStage", 1, "For the 'like a run' kit: 0 early, 1 middle, 2 late.");
+			spread = config.Bind("Bots", "Spread", 0, "0 every bot the same, 1 mixed around the choice, 2 every bot random.");
+			spreadSteps = config.Bind("Bots", "SpreadSteps", 1, "For mixed: how many steps either side of the choice a bot may roll, 1 or 2.");
 		}
 
 		/// <summary>The host's starting values for a new room.</summary>
@@ -124,6 +206,11 @@ namespace Multiplayer
 			s.Laps = laps.Value;
 			s.Rounds = RaceSettings.Clamp(rounds.Value, 2, 10);
 			s.Ai = RaceSettings.Clamp(ai.Value, 0, 5);
+			s.Aggression = RaceSettings.Clamp(aggression.Value, 0, Bots.AggressionSteps - 1);
+			s.Kit = RaceSettings.Clamp(kit.Value, 0, Bots.KitCount - 1);
+			s.Stage = RaceSettings.Clamp(stage.Value, 0, 2);
+			s.Spread = RaceSettings.Clamp(spread.Value, 0, 2);
+			s.SpreadSteps = RaceSettings.Clamp(spreadSteps.Value, 1, 2);
 			s.Wreck = wreck.Value == RaceSettings.WreckRespawn ? RaceSettings.WreckRespawn : RaceSettings.WreckSpectate;
 			s.RespawnSeconds = respawn.Value;
 			return s;
@@ -173,6 +260,11 @@ namespace Multiplayer
 			ai.Value = s.Ai;
 			wreck.Value = s.Wreck;
 			respawn.Value = s.RespawnSeconds;
+			aggression.Value = s.Aggression;
+			kit.Value = s.Kit;
+			stage.Value = s.Stage;
+			spread.Value = s.Spread;
+			spreadSteps.Value = s.SpreadSteps;
 		}
 	}
 }

@@ -14,7 +14,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | BombRace | Race mode: stay above a speed or the bomb goes off | none, about 1 race in 10 |
 | InfinitePlayground | Endless floor for the `playground` command | `playground` |
 | Highway | Race map built in code: two four-lane highways, one on a bridge over the other, dirt shortcuts, breakable roadside objects. In the run map pool | none, shows up as a map |
-| Multiplayer | Races for 2 to 6 players over Steam: host-run room, same mods required, PvP damage and AI rivals set by the host | none, the MULTIPLAYER button in the main menu |
+| Multiplayer | Races for 2 to 6 players over Steam (CUSTOM mode: up to 20): host-run room, same mods required, PvP damage and AI rivals set by the host | none, the MULTIPLAYER button in the main menu |
 
 Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, Railgun, Minigun, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
 
@@ -122,13 +122,13 @@ Known: a few gaps of 1 to 3 m where a highway wall meets a ramp wall. A saved ru
 Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time objectives), `MedianGaps`, `MedianGapLength`, `SpeedLossPerPiece`, `SignSpeedLoss`, `Grip` and `Drag` (dirt roads), `ShowPath`.
 
 ### Multiplayer
-Races for 2 to 6 players over Steam. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo").
+Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo").
 
 **Using it.** The MULTIPLAYER screen has GARAGE, HOST ROOM and JOIN ROOM.
 
 - GARAGE opens the game's garage with no room: no shop, no money, every item in the inventory except Slow-Mo, the Inverter, map rerolls, run boons and other consumables. What you fit is kept in `BepInEx\config\halfgrip.multiplayer.loadout.txt`. With nothing fitted you start with the Gunslinger and Nitro Head items, without Nitro Head's handicap. Esc goes back.
 - HOST ROOM makes a Steam lobby and a 6-character code. Others type it under JOIN ROOM, or accept a Steam invite while they are at the main menu. INVITE FRIENDS lists your online Steam friends. The host can lock the room and kick players.
-- In the room everybody but the host presses READY. The host sees START RACE (grey until all are ready) and sets the race in RACE SETTINGS: map (or RANDOM: the host rolls a map and layout at every start, never the same map twice in a row), layout, mode (Race or Demolition), laps, up to 5 AI rivals, what a wreck does (out and watch, or respawn after a delay), and the damage multipliers. Other players can open the settings but not change them.
+- In the room everybody but the host presses READY. The host sees START RACE (grey until all are ready) and sets the race in RACE SETTINGS: map (or RANDOM: the host rolls a map and layout at every start, never the same map twice in a row), layout, mode (Race, Tournament, Demolition or CUSTOM: 20 players, up to 100 laps), laps, AI rivals (up to the mode's player limit), what a wreck does (out and watch, or respawn after a delay), and the damage multipliers. BOTS opens a second view for the AI rivals: how aggressive they drive and shoot (normal, +25%, hardcore, +75%, ultra), how they are kitted (starter, half, fully kitted, speed demons, combat, like a run, random), and whether every bot is the same, mixed around your choice or random. Other players can open the settings but not change them. When more players are in the room than the mode takes, the ones who joined last watch.
 - During the race Pause does not stop time. Your car is released while the menu is open. Leaving from it is a disconnect.
 - Once you cross the line you let go of the controls and the car cannot be hurt. After a few seconds it is hidden, the others see it wrecked away, and you watch from a drone (Tab: next car, bots too; Tab is listed in Settings > Controls and can be rebound). RACE RESULTS stays locked until every player has finished or is out; then it ends the race even if bots are still driving. Only the winner gets the game's SUCCESS text.
 - The results list place, best lap, total time, KOs, WOs and a score for each car, bots included. Score follows the single-player rule: place payout (finishers), survival, kills, and what you picked up on the way. A wrecked car scores 0. The host sends everybody back to the lobby.
@@ -143,7 +143,8 @@ Races for 2 to 6 players over Steam. It switches on the MULTIPLAYER button of th
 - **Warnings.** Other players' cars show the gun they are aiming (the AI cars' own revolver, SMG or shotgun model) and a red line from it to you when it points at you. Every shot draws the game's tracer from their car and plays the gun's sound. When something hurts you (a player or an AI car) a red bar at the screen edge points at it for a second. If the RPG mod is installed, a player's rockets are seen in flight and go off where they went off (the rocket you see is a copy: only the owner's game does the damage). Only the aim, the shots' landing points and the rockets' positions are sent; damage still travels as described above. Needs HalfGripTools 1.0.2.
 - **AI rivals** are the host's real enemy cars; clients get stand-ins updated at 15 Hz. A client's hits on an AI car go to the host. AI gunfire at a player is simulated on that player's own game.
 - **Races** start through the garage's own start button (that is where the game applies your loadout), so the garage scene loads unseen behind a black screen. The track, weather and lap rules are the game's.
-- **Your save is not touched.** On entering a room (or the garage) the save tables are copied in memory and every write to disk and to Steam achievements is blocked. On leaving they are put back and the game's caches are dropped.
+- **Your save is not touched.** On entering a room (or the garage) the save tables are copied in memory and every write to disk, to Steam achievements and to the run statistics upload is blocked, from the moment HOST or JOIN is pressed until the menu is back. On leaving they are put back and the game's caches are dropped. A copy of `save.json` is kept next to it as `save.json.multiplayer-backup` and rewritten each time you go into multiplayer.
+- **For other mods.** HalfGripTools 1.0.6 has `ctx.Net`: a mod sends bytes to its own copy on the other players' machines, reads who is in the room and what phase it is in, and can add a game mode to the MODE row. See HalfGripTools `docs\WRITING_MODS.md`.
 
 **Limits:** other players' gunfire, rockets and tracers are not drawn on your screen, only what they do. Slow-Mo is off in a room. If the host leaves, the room closes. The AI cars run in the host's game, so if the host leaves the room closes. The AI KO count only knows about gun hits, not rams.
 

@@ -105,9 +105,25 @@ namespace Multiplayer
 				s.Mode = RaceSettings.ModeTournament;
 				s.Rounds = 2;
 			}
+			if (mode == "custom" || mode == "botsrandom")
+			{
+				// CUSTOM: more cars than the track's six grid spots, and bots set from the BOTS view
+				s.Mode = RaceSettings.ModeCustom;
+				s.Ai = mode == "custom" ? 14 : 10;
+				s.Laps = 1;
+				s.Aggression = 2;
+				s.Kit = mode == "custom" ? Bots.KitCombat : Bots.KitRandom;
+				s.Spread = mode == "custom" ? Bots.SpreadSame : Bots.SpreadRandom;
+			}
+			if (mode == "spectate")
+			{
+				s.Mode = RaceSettings.ModeMod;
+				s.ModeId = "rig.two";
+			}
 			if (mode == "respawn")
 			{
 				s.Wreck = RaceSettings.WreckRespawn;
+				s.Ai = 1;
 			}
 			Room.BroadcastRoster();
 		}
@@ -130,8 +146,20 @@ namespace Multiplayer
 				RigScenarios.Check(Room.Race.Map != RaceSettings.RandomMap && Garage.FindMap(Room.Race.Map) != null, "host: RANDOM became a real map (" + Room.Race.Map + ", " + (TrackVariant)Room.Race.Variant + ")");
 				RigScenarios.Check(Room.Settings.Map == RaceSettings.RandomMap, "host: the setting stays RANDOM for the next race");
 			}
-			RigScenarios.Check(RaceSync.Humans.Count() == RigRoom.Players - 1, "host: a stand-in car exists for each other player");
-			RigScenarios.Check(Room.AiGrid.Count == (mode == "ai" ? 2 : 0), "host: the AI cars are as set");
+			int seated = mode == "spectate" ? 2 : RigRoom.Players;
+			int aiCount = mode == "ai" ? 2 : mode == "custom" ? 14 : mode == "botsrandom" ? 10 : mode == "respawn" ? 1 : 0;
+			RigScenarios.Check(RaceSync.Humans.Count() == seated - 1, "host: a stand-in car exists for each other player who has a car (" + RaceSync.Humans.Count() + ")");
+			RigScenarios.Check(Room.AiGrid.Count == aiCount, "host: the AI cars are as set (" + Room.AiGrid.Count + ")");
+			bool manyCars = Math.Min(Room.Peers.Count, Room.Race.Cap) + Room.Race.Ai > Room.RaceMax;
+			RigScenarios.Check((LobbyScreen.GridWarning(Room.Race).Length > 0) == manyCars, "host: the grid warning shows exactly when there are more than 6 cars (" + (manyCars ? "more" : "6 or fewer") + ")");
+			if (mode == "custom" || mode == "botsrandom")
+			{
+				yield return RigExtra.CheckBigGrid(mode == "custom", aiCount);
+			}
+			if (mode == "spectate")
+			{
+				RigScenarios.Check(Room.Peers.Count(p => p.Spectator) == 1 && !Room.Me.Spectator, "host: one player was left without a car (" + Room.Peers.Count(p => p.Spectator) + ")");
+			}
 			if (mode == "tournament")
 			{
 				// the other player's car wears the paint that player chose (red / green / blue)
@@ -161,7 +189,7 @@ namespace Multiplayer
 				RigBot.Attach(RaceSync.TM, 60f);
 				if (mode != "clientquit")
 				{
-					yield return Watch_Host(mode == "ai");
+					yield return Watch_Host(aiCount > 0);
 				}
 				if (mode == "watch")
 				{
@@ -173,8 +201,8 @@ namespace Multiplayer
 			yield return new WaitForSecondsRealtime(1.5f);
 			Rig.Shot("host_07_results.png");
 			Rig.Log("results: " + string.Join(" | ", Room.Results.Select(l => l.Name + " state " + l.State + " " + l.Time.ToString("0.0")).ToArray()));
-			RigScenarios.Check(HumanResults().Count == (mode == "clientquit" ? RigRoom.Players - 1 : RigRoom.Players), "host: " + HumanResults().Count + " result line(s)");
-			RigScenarios.Check(Room.Results.Count(l => l.Ai) == (mode == "ai" ? 2 : 0), "host: the AI rivals are in the results (" + Room.Results.Count(l => l.Ai) + ")");
+			RigScenarios.Check(HumanResults().Count == (mode == "clientquit" ? RigRoom.Players - 1 : mode == "spectate" ? 2 : RigRoom.Players), "host: " + HumanResults().Count + " result line(s)");
+			RigScenarios.Check(Room.Results.Count(l => l.Ai) == aiCount, "host: the AI rivals are in the results (" + Room.Results.Count(l => l.Ai) + ")");
 			if (mode == "clientquit")
 			{
 				RigScenarios.Check(Room.Peers.Count == 1, "host: the player who left is gone from the room");
@@ -189,11 +217,11 @@ namespace Multiplayer
 				}
 				RigScenarios.Check(HumanResults().Count > 0 && HumanResults()[0].Score > 0f, "host: the winner scored points");
 			}
-			if (mode == "race" || mode == "ai" || mode == "tournament")
+			if (mode == "race" || mode == "ai" || mode == "tournament" || mode == "custom" || mode == "botsrandom" || mode == "spectate")
 			{
 				RigScenarios.Check(HumanResults().Count > 0 && HumanResults()[0].Name == "A" && HumanResults()[0].State == 0, "host: the faster bot (A) won");
 				RigScenarios.Check(HumanResults().Count > 1 && HumanResults()[1].Name == "B" && HumanResults()[1].State == 0, "host: B finished second");
-				if (RigRoom.Players >= 3)
+				if (RigRoom.Players >= 3 && mode != "spectate")
 				{
 					RigScenarios.Check(HumanResults().Count > 2 && HumanResults()[2].Name == "C" && HumanResults()[2].State == 0, "host: C finished third");
 				}
@@ -205,7 +233,7 @@ namespace Multiplayer
 			yield return RigScenarios.WaitFor(() => Room.Phase == Phase.Results && Flow.InMenu, 60f, "host: the results screen (in the menu) is up");
 			yield return new WaitForSecondsRealtime(2f);
 			Rig.Shot("host_07b_results_screen.png");
-			if (mode == "race" || mode == "ai" || mode == "tournament")
+			if (mode == "race" || mode == "ai" || mode == "tournament" || mode == "custom" || mode == "botsrandom" || mode == "spectate")
 			{
 				RigScenarios.Check(HumanResults().Where(l => l.State == 0).All(l => l.BestLap > 0f), "host: every finisher has a best lap in the results");
 			}
@@ -283,6 +311,16 @@ namespace Multiplayer
 				RigScenarios.Check(!Room.Find(Room.Peers.First(p => !p.Local).Id).Out, "host: B is not out after respawning");
 				Rig.Shot("host_06c_respawned.png");
 				RigBot.Attach(tm, 60f);
+				// the RESPAWN rule is for the AI cars too: wreck the bot and it comes back on the racing line
+				EnemyController bot = RaceSync.AiAt(0);
+				RigScenarios.Check(bot != null && bot.alive, "host: the AI rival is racing");
+				if (bot != null)
+				{
+					bot.TakeDamage(100000f, true);
+					yield return RigScenarios.WaitFor(() => !bot.alive, 10f, "host: the AI rival was wrecked");
+					yield return RigScenarios.WaitFor(() => RaceSync.AiAt(0) != null && RaceSync.AiAt(0) != bot && RaceSync.AiAt(0).alive, 30f, "host: the wrecked AI car came back (respawn rule)");
+					RigScenarios.Signal("botback");
+				}
 			}
 			else
 			{
@@ -296,6 +334,11 @@ namespace Multiplayer
 			yield return WaitRaceStarted("client");
 			yield return new WaitForSecondsRealtime(2f);
 			Rig.Shot("client_04_race.png");
+			if (Room.Me != null && Room.Me.Spectator)
+			{
+				yield return RigExtra.SpectatorClient();
+				yield break;
+			}
 			if (mode == "hostquit")
 			{
 				yield break; // the host leaves; the end of the scenario checks what happened to this client
@@ -313,7 +356,7 @@ namespace Multiplayer
 			else
 			{
 				RigBot.Attach(RaceSync.TM, Rig.Label == "C" ? 45f : 52f);
-				yield return Watch_Client(mode == "ai");
+				yield return Watch_Client(mode == "ai" || mode == "custom" || mode == "botsrandom");
 				if (mode == "watch")
 				{
 					yield break;
@@ -355,8 +398,10 @@ namespace Multiplayer
 			Rig.Shot("client_04b_race_mid.png");
 			if (ai)
 			{
-				RemoteCar proxy = UnityEngine.Object.FindObjectsByType<RemoteCar>(FindObjectsSortMode.None).FirstOrDefault(r => r.IsAi);
-				RigScenarios.Check(proxy != null && TrackProgress(proxy) > 100f, "client: the host's AI car shows up and moves (" + (proxy == null ? "none" : TrackProgress(proxy).ToString("0")) + " m)");
+				List<RemoteCar> proxies = UnityEngine.Object.FindObjectsByType<RemoteCar>(FindObjectsSortMode.None).Where(r => r.IsAi).ToList();
+				float furthest = proxies.Count == 0 ? -1f : proxies.Max(r => TrackProgress(r));
+				RigScenarios.Check(proxies.Count == Room.AiGrid.Count, "client: every one of the host's AI cars has a stand-in (" + proxies.Count + " of " + Room.AiGrid.Count + ")");
+				RigScenarios.Check(proxies.Count > 0 && furthest > 100f, "client: the host's AI cars move (the furthest is " + furthest.ToString("0") + " m along)");
 			}
 		}
 
@@ -376,17 +421,26 @@ namespace Multiplayer
 			Rig.Log("hp after the first hit: " + firstHp + " of " + full);
 			RigScenarios.Check(Mathf.Abs((full - firstHp) - perHit) < 0.6f, "client: the first hit took " + (full - firstHp).ToString("0.##") + " HP, expected " + perHit.ToString("0.##"));
 			yield return RigScenarios.WaitFor(() => link.hp <= 0f, 30f, "client: wrecked after " + shots + " hits");
+			Vector3 deathAt = RaceSync.TM.playerCarController.rb.position;
 			yield return new WaitForSecondsRealtime(1.5f);
 			if (respawn)
 			{
+				RigScenarios.Check(!Countdown.Visible, "client: 1.5 s after the wreck the WRECKED text is up and the countdown has not started");
+				yield return RigScenarios.WaitFor(() => Countdown.Visible, 8f, "client: the RESPAWN IN countdown shows after the WRECKED text");
 				yield return RigScenarios.WaitFor(() => link.hp > 0f && !RaceSync.LocalOut, 20f, "client: respawned with HP back");
-				RigScenarios.Check(Mathf.Approximately(link.hp, link.MaxHp), "client: full HP after the respawn");
+				RigScenarios.Check(Mathf.Approximately(link.hp, link.MaxHp) || link.MaxHp < 1f && Mathf.Approximately(link.hp, 1f), "client: full HP after the respawn (at least 1)");
+				RigScenarios.Check(!Countdown.Visible, "client: the countdown is gone after the respawn");
+				float away = Vector3.Distance(RaceSync.TM.playerCarController.rb.position, deathAt);
+				RigScenarios.Check(away < 40f, "client: respawned on the track by the place where the damage killed it (" + away.ToString("0.0") + " m from the wreck spot)");
 				RigBot.Attach(RaceSync.TM, 52f);
+				yield return RigScenarios.WaitSignal("botback", s => { }, 90f);
+				yield return RigScenarios.WaitFor(() => UnityEngine.Object.FindObjectsByType<RemoteCar>(FindObjectsSortMode.None).Any(r => r.IsAi && r.Controller != null && r.Controller.alive), 15f, "client: the host's AI car has a stand-in again after its respawn");
 			}
 			else
 			{
 				RigScenarios.Check(RaceSync.LocalOut, "client: out of the race after the wreck");
-				RigScenarios.Check(Spectator.Active, "client: the spectator camera is on");
+				RigScenarios.Check(!Spectator.Active, "client: 1.5 s after the wreck the player is still in the car, the drone waits");
+				yield return RigScenarios.WaitFor(() => Spectator.Active, 10f, "client: the spectator camera comes on once the wreck has been seen");
 				yield return new WaitForSecondsRealtime(2f);
 				Rig.Shot("client_04c_spectating.png");
 			}
