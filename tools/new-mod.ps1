@@ -14,7 +14,7 @@ $id = $Name.ToLowerInvariant() -replace "[^a-z0-9_-]", ""
   "version": "0.1.0",
   "author": "",
   "description": "",
-  "gameVersion": "0.418"
+  "gameVersion": "0.419"
 }
 "@ | Set-Content "$dir\mod.json" -Encoding utf8
 @"

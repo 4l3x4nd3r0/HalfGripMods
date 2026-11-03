@@ -18,7 +18,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 
 Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, Railgun, Minigun, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
 
-All mods are made for game version 0.418. On another version they still load, and the mod manager shows a warning sign next to them.
+All mods are made for game version 0.419. On another version they still load, and the mod manager shows a warning sign next to them.
 
 ## Install
 

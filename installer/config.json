@@ -16,9 +16,6 @@
     "repo": "4l3x4nd3r0/HalfGripMods"
   },
   "recommended": [
-    "https://github.com/htubdawg/ProcTrack",
-    "https://github.com/htubdawg/HalfGripMiniMap",
-    "https://github.com/htubdawg/HalfGripStereo",
-    "https://github.com/htubdawg/HalfGripOpenWorld"
+    "https://github.com/htubdawg/jMods/tree/main"
   ]
 }
