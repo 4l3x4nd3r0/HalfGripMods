@@ -1,0 +1,9 @@
+﻿{
+  "id": "templeofdrift",
+  "name": "Temple of Drift",
+  "version": "1.0.0",
+  "author": "4l3x4nd3r",
+  "description": "A new map: drift down a mountain pass, race through a temple and a Shinto gate, take the dirt road into a cave that splits in two and climb back to the summit. With its own eurobeat track.",
+  "icon": "icon.png",
+  "gameVersion": "0.419"
+}

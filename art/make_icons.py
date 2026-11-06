@@ -224,6 +224,7 @@ def main():
         "BombRace": load("BombRace", "bomb_icon.png"),
         "InfinitePlayground": playground_icon(),
         "Highway": load("Highway", "highway_icon.png"),
+        "TempleOfDrift": load("TempleOfDrift", "templeofdrift_icon.png"),
         "Multiplayer": multiplayer_icon(),
     }
     for name, pic in mods.items():
