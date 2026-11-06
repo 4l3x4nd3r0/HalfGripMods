@@ -14,6 +14,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | BombRace | Race mode: stay above a speed or the bomb goes off | none, about 1 race in 10 |
 | InfinitePlayground | Endless floor for the `playground` command | `playground` |
 | Highway | Race map built in code: two four-lane highways, one on a bridge over the other, dirt shortcuts, breakable roadside objects. In the run map pool | none, shows up as a map |
+| TempleOfDrift | Race map built in code: a touge of hairpins down a mountain, a temple and a Shinto torii, a dirt road and a cave that splits in two, with its own eurobeat track. In the run map pool | none, shows up as a map |
 | Multiplayer | Races for 2 to 6 players over Steam (CUSTOM mode: up to 20): host-run room, same mods required, PvP damage and AI rivals set by the host | none, the MULTIPLAYER button in the main menu |
 
 Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, Railgun, Minigun, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
@@ -45,7 +46,7 @@ If you do not like running unknown software, the detailed steps are below, and t
 
 ```
 BepInEx\HalfGripMods\
-  M1911\  RPG\  SniperRifle\  Railgun\  Minigun\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  Multiplayer\
+  M1911\  RPG\  SniperRifle\  Railgun\  Minigun\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  TempleOfDrift\  Multiplayer\
 ```
 
 3. Start the game, quit, open `BepInEx\LogOutput.log`. Each mod that loaded has a line:
@@ -120,6 +121,23 @@ How it works:
 Known: a few gaps of 1 to 3 m where a highway wall meets a ramp wall. A saved run that includes Highway needs the mod loaded to be restored.
 
 Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time objectives), `MedianGaps`, `MedianGapLength`, `SpeedLossPerPiece`, `SignSpeedLoss`, `Grip` and `Drag` (dirt roads), `ShowPath`.
+
+### TempleOfDrift
+A race map, added to `RunConfig.maps` as track index 21. Like Highway it is built from code inside the Stadium scene when a Temple of Drift race loads; Stadium hosts it and its own track is not used.
+
+What is in it: a touge, a narrow mountain road of banked hairpins painted red and white, from the summit down to a valley. Then a Buddhist temple on a gravel path and a Shinto torii, a dirt road through the forest, and a cave that forks in two: a short, steep way over broken rock, closed by plank barricades you can break at speed, and a long, easy way lit by stone lanterns. Both climb back to the summit. The lap is about 6.3 km. Cedar, cherry, maple, pine and bamboo grow along the roads, and the map plays its own eurobeat track instead of one of the game's.
+
+How it works:
+
+- **Geometry:** the roads, the mountain, the temple, the torii and the cave are meshes generated at load. The route and the height grid of the mountain were laid out offline and are read when the map builds (the route is compiled into the mod, the grid is `data\terrain.bin`). Cherry trees use `data\sakura_*.txt` and `sprites\sakura_atlas.png`. Nothing is copied from the game's files.
+- **Track line:** the control points of the game's `PathManager` are replaced by the lap, as on Highway, and the AI follows that line.
+- **Surfaces:** each part of the road has its own grip and drag (hairpin tarmac, paint, dirt, gravel, the short way's rock). Tyres marked Off-Road or All-Conditions ignore the surface.
+- **Breakables:** guardrail pieces, bamboo and the plank barricades are script-driven pieces. Bamboo and barricades break from a set speed and cost a share of your speed; below it they hold the car.
+- **Music:** `audio\temple_of_drift.wav` is loaded when the map is made. `Enabled` under `Music` turns it off.
+
+Known: a saved run that includes Temple of Drift needs the mod loaded to be restored.
+
+Settings: `TestMode` (every race on Temple of Drift), `BenchmarkFactor` (scales the time objectives), `Grip` and `Drag` under `Dirt`, `Gravel`, `Cave` (`ShortWayGrip`, `ShortWayDrag`, `Lights`, `GuideWalls`, `ForkLanterns`), `TarmacGrip` under `Touge` and `Hairpins`, `PaintGrip`, `FellSpeed` and `SpeedKept` under `Bamboo`, `EntranceBreakSpeed`, `ExitBreakSpeed` and `SpeedKept` under `Timber`, `SpeedLossPerPiece` (guardrail), `Trees`, `Enabled` (music), `ShowPath`.
 
 ### Multiplayer
 Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo").
