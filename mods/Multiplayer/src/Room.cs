@@ -222,7 +222,7 @@ namespace Multiplayer
 
 		// ------------------------------------------------------------------ backend
 
-		internal static bool EnsureBackend()
+		internal static bool EnsureBackend(bool quiet = false)
 		{
 			if (B == null)
 			{
@@ -243,7 +243,10 @@ namespace Multiplayer
 			}
 			if (!B.Ready)
 			{
-				Say("Steam is not running, so there is no multiplayer. Start the game through Steam.");
+				if (!quiet)
+				{
+					Say("Steam is not running, so there is no multiplayer. Start the game through Steam.");
+				}
 				return false;
 			}
 			return true;
@@ -550,6 +553,7 @@ namespace Multiplayer
 			{
 				return; // already left (a second goodbye from the network, say); never touch the sandbox twice
 			}
+			GiveCursorBack();
 			bool wasActive = Active; Ui.ReleaseInputs(); Pause.Release(); ViewingResults = false; Garage.Solo = false; Garage.SoloSeen = false; Garage.ReturnToScreen = Flow.ActiveScene != Flow.MenuScene;
 			if (Active && B != null)
 			{
@@ -883,6 +887,24 @@ namespace Multiplayer
 						RaceSync.OnAiRespawned(r);
 					}
 					break;
+				case Msg.Clock:
+					if (fromHost && !IsHost)
+					{
+						ClockSync.OnClock(RaceSync.TM, r);
+					}
+					break;
+				case Msg.SlowMo:
+					if (IsHost || fromHost)
+					{
+						SharedTime.OnSlowMo(from, r);
+					}
+					break;
+				case Msg.Rewind:
+					if (IsHost || fromHost)
+					{
+						SharedTime.OnRewind(from);
+					}
+					break;
 				case Msg.Despawn:
 					RaceSync.OnDespawn(from);
 					break;
@@ -1069,6 +1091,12 @@ namespace Multiplayer
 				Mod.Log.LogInfo("Phase " + old + " -> " + Phase);
 			}
 			Skins.Refresh();
+			Peer self = Me;
+			if (self != null && self.Ready && Phase == Phase.Lobby && Loadout.FittedBanned().Count > 0)
+			{
+				// the host just banned something that is on this car: no longer ready
+				SetReady(false);
+			}
 			Notify();
 		}
 
@@ -1080,6 +1108,10 @@ namespace Multiplayer
 			if (me == null || Phase != Phase.Lobby)
 			{
 				return;
+			}
+			if (ready && !IsHost && Loadout.FittedBanned().Count > 0)
+			{
+				return; // the host banned something that is on this car: the lobby says what; the garage takes it off
 			}
 			me.Ready = ready;
 			if (IsHost)
@@ -1566,8 +1598,69 @@ namespace Multiplayer
 
 		// ------------------------------------------------------------------ per frame
 
+		private static bool wasInMenu;
+		private static float cursorFixUntil;
+		private static bool runInBackgroundSet;
+		private static bool runInBackgroundBefore;
+		private static float lastTickAt;
+
+		/// <summary>
+		/// The cursor: the race scene hides and locks it (the hand), and the game gives it back only in its own race end and pause menu. A room's race
+		/// end, results and leave skip those, so the menu came up with a hidden cursor that only a click brought back (or never). Forced visible for a
+		/// moment each time the menu scene comes up, and by <see cref="Leave"/>.
+		/// </summary>
+		internal static void GiveCursorBack()
+		{
+			cursorFixUntil = Time.realtimeSinceStartup + 2.5f;
+			Cursor.lockState = CursorLockMode.Confined;
+			Cursor.visible = true;
+		}
+
+		private static void KeepCursor()
+		{
+			bool inMenu = Flow.InMenu;
+			if (inMenu && !wasInMenu)
+			{
+				GiveCursorBack();
+			}
+			wasInMenu = inMenu;
+			if (inMenu && Time.realtimeSinceStartup < cursorFixUntil && (!Cursor.visible || Cursor.lockState == CursorLockMode.Locked))
+			{
+				Cursor.lockState = CursorLockMode.Confined;
+				Cursor.visible = true;
+			}
+		}
+
+		/// <summary>A room keeps running when the window loses focus: the host stopped sending while alt-tabbed and the others dropped it after 25 s of silence.</summary>
+		private static void KeepRunning()
+		{
+			if (Engaged && !runInBackgroundSet)
+			{
+				runInBackgroundSet = true;
+				runInBackgroundBefore = Application.runInBackground;
+				Application.runInBackground = true;
+			}
+			else if (!Engaged && runInBackgroundSet)
+			{
+				runInBackgroundSet = false;
+				Application.runInBackground = runInBackgroundBefore;
+			}
+		}
+
 		internal static void Tick()
 		{
+			KeepCursor();
+			KeepRunning();
+			float realNow = Time.realtimeSinceStartup;
+			if (lastTickAt > 0f && realNow - lastTickAt > 5f)
+			{
+				// the game did not run for a while (a freeze, a long load): nobody was silent, we just were not listening
+				foreach (ulong key in lastHeard.Keys.ToList())
+				{
+					lastHeard[key] = realNow;
+				}
+			}
+			lastTickAt = realNow;
 			if (leavingUntil > 0f && Flow.InMenu)
 			{
 				// the menu is up: nothing is "leaving" any more. Left set, it blocked the track load of a race started within 20 s of leaving one.

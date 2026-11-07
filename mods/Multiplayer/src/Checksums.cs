@@ -18,7 +18,7 @@ namespace Multiplayer
 	/// </summary>
 	internal static class Checksums
 	{
-		internal const int Protocol = 8;
+		internal const int Protocol = 9;
 
 		internal sealed class ModSum
 		{

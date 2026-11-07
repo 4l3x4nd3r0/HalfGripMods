@@ -42,6 +42,11 @@ namespace Multiplayer
 		internal int Spread;
 		internal int SpreadSteps = 1;
 
+		/// <summary>Item ids the host banned: not offered in the room's garages, taken off any car, READY blocked while one is fitted.</summary>
+		internal System.Collections.Generic.HashSet<string> Banned = new System.Collections.Generic.HashSet<string>();
+
+		internal bool IsBanned(string id) { return id != null && Banned.Contains(id); }
+
 		// Multipliers on the damage the same hit would do to an AI car. 0.5 = half.
 		internal float Gun = 0.5f;
 		internal float Explosion = 0.5f;
@@ -105,7 +110,9 @@ namespace Multiplayer
 
 		internal RaceSettings Copy()
 		{
-			return (RaceSettings)MemberwiseClone();
+			RaceSettings c = (RaceSettings)MemberwiseClone();
+			c.Banned = new System.Collections.Generic.HashSet<string>(Banned);
+			return c;
 		}
 
 		internal void Write(W w)
@@ -113,6 +120,12 @@ namespace Multiplayer
 			w.Str(Map).I32(Variant).I32(Laps).U8(Mode).U8(Rounds).U8(Ai).U8(Wreck).F32(RespawnSeconds);
 			w.F32(Gun).F32(Explosion).F32(Item).F32(Ram).F32(AiGun).Bool(Tires);
 			w.Str(ModeId).U8(Aggression).U8(Kit).U8(Stage).U8(Spread).U8(SpreadSteps);
+			string[] ids = Banned.Where(b => !string.IsNullOrEmpty(b) && b.Length <= 60).Take(600).ToArray();
+			w.I32(ids.Length);
+			foreach (string id in ids)
+			{
+				w.Str(id);
+			}
 		}
 
 		internal static RaceSettings Read(R r)
@@ -143,6 +156,15 @@ namespace Multiplayer
 			s.Stage = Clamp(r.U8(), 0, 2);
 			s.Spread = Clamp(r.U8(), 0, 2);
 			s.SpreadSteps = Clamp(r.U8(), 1, 2);
+			int banned = Clamp(r.I32(), 0, 600);
+			for (int i = 0; i < banned; i++)
+			{
+				string id = r.Str();
+				if (!string.IsNullOrEmpty(id))
+				{
+					s.Banned.Add(id);
+				}
+			}
 			return s;
 		}
 
@@ -172,6 +194,7 @@ namespace Multiplayer
 		private static ConfigEntry<int> stage;
 		private static ConfigEntry<int> spread;
 		private static ConfigEntry<int> spreadSteps;
+		private static ConfigEntry<string> banned;
 
 		internal static void Bind(ConfigFile config)
 		{
@@ -191,6 +214,7 @@ namespace Multiplayer
 			stage = config.Bind("Bots", "RunStage", 1, "For the 'like a run' kit: 0 early, 1 middle, 2 late.");
 			spread = config.Bind("Bots", "Spread", 0, "0 every bot the same, 1 mixed around the choice, 2 every bot random.");
 			spreadSteps = config.Bind("Bots", "SpreadSteps", 1, "For mixed: how many steps either side of the choice a bot may roll, 1 or 2.");
+			banned = config.Bind("Items", "Banned", "", "Item ids the host has banned (comma separated). Set in the lobby: RACE SETTINGS > ITEMS. Kept between lobbies.");
 		}
 
 		/// <summary>The host's starting values for a new room.</summary>
@@ -213,6 +237,10 @@ namespace Multiplayer
 			s.SpreadSteps = RaceSettings.Clamp(spreadSteps.Value, 1, 2);
 			s.Wreck = wreck.Value == RaceSettings.WreckRespawn ? RaceSettings.WreckRespawn : RaceSettings.WreckSpectate;
 			s.RespawnSeconds = respawn.Value;
+			foreach (string id in (banned.Value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+			{
+				s.Banned.Add(id.Trim());
+			}
 			return s;
 		}
 
@@ -265,6 +293,7 @@ namespace Multiplayer
 			stage.Value = s.Stage;
 			spread.Value = s.Spread;
 			spreadSteps.Value = s.SpreadSteps;
+			banned.Value = string.Join(",", s.Banned.OrderBy(b => b, StringComparer.Ordinal).ToArray());
 		}
 	}
 }

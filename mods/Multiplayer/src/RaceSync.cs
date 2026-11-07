@@ -18,6 +18,9 @@ namespace Multiplayer
 
 		private static TrackManager tm;
 		private static readonly Dictionary<ulong, RemoteCar> humans = new Dictionary<ulong, RemoteCar>();
+		private static bool startLogged;
+		/// <summary>A wrecked player's scoreboard line, kept until the respawned car is made.</summary>
+		private static readonly Dictionary<ulong, LapManager.LeaderboardEntry> wreckedLaps = new Dictionary<ulong, LapManager.LeaderboardEntry>();
 		private static readonly List<RemoteCar> aiProxies = new List<RemoteCar>();
 		private static readonly List<EnemyController> aiReal = new List<EnemyController>();
 		private static readonly HashSet<int> aiReported = new HashSet<int>();
@@ -82,6 +85,10 @@ namespace Multiplayer
 			Countdown.Remove();
 			Cues.Remove();
 			humans.Clear();
+			wreckedLaps.Clear();
+			startLogged = false;
+			ClockSync.Reset();
+			SharedTime.Reset();
 			aiRespawnAt.Clear();
 			aiLastSpot.Clear();
 			aiProxies.Clear();
@@ -648,6 +655,12 @@ namespace Multiplayer
 			{
 				skin.carName = carName;
 			}
+			if (Room.Phase == Phase.Racing && manager.lapManager != null)
+			{
+				// A car made after the start (a respawned player or bot) is not on the game's scoreboard: the lap manager registered the cars that
+				// existed when it began, and drops the wrecked ones. The game's own mid-race spawn registers its cars the same way.
+				manager.lapManager.RegisterCar(car);
+			}
 			return ec;
 		}
 
@@ -737,6 +750,16 @@ namespace Multiplayer
 			float now = Time.unscaledTime;
 			if (Room.Phase == Phase.Racing)
 			{
+				if (!startLogged && tm.playerCarlink != null)
+				{
+					startLogged = true;
+					Mod.Log.LogInfo("Race start: max HP " + tm.playerCarlink.MaxHp.ToString("0.#") + ", HP " + tm.playerCarlink.hp.ToString("0.#"));
+				}
+				if (Room.IsHost)
+				{
+					ClockSync.TickHost(tm, now);
+				}
+				SharedTime.Tick(tm);
 				if (now >= nextSend)
 				{
 					nextSend = now + 0.05f;
@@ -1024,6 +1047,7 @@ namespace Multiplayer
 			}
 			// items can lower the maximum to nothing: a respawned car always has at least 1 HP
 			link.hp = link.MaxHp >= 1f ? link.MaxHp : 1f;
+			Mod.Log.LogInfo("Respawn: max HP " + link.MaxHp.ToString("0.#") + ", HP now " + link.hp.ToString("0.#"));
 			PlaceAtWreck();
 			wreckReported = false;
 			TextController.EnqueueRandomText(1f, "BACK IN THE RACE");
@@ -1051,6 +1075,16 @@ namespace Multiplayer
 			RemoteCar fresh = SpawnProxy(tm, enemies, p, q, peer.Name, from, false, -1);
 			fresh.OnState(p, q, Vector3.zero, 0f, 1f);
 			humans[from] = fresh;
+			LapManager.LeaderboardEntry kept;
+			if (wreckedLaps.TryGetValue(from, out kept) && tm.lapManager != null && tm.lapManager.leaderboard.TryGetValue(fresh.gameObject, out LapManager.LeaderboardEntry current))
+			{
+				// back on the scoreboard with the laps it had when it was wrecked
+				kept.position = current.position;
+				kept.carName = peer.Name;
+				kept.justStarted = current.justStarted;
+				tm.lapManager.leaderboard[fresh.gameObject] = kept;
+			}
+			wreckedLaps.Remove(from);
 		}
 
 		internal static void OnWreckedPeer(Peer peer, ulong killer)
@@ -1075,6 +1109,11 @@ namespace Multiplayer
 				RemoteCar rc = RemoteOf(peer.Id);
 				if (rc != null && rc.Controller != null && rc.Controller.alive)
 				{
+					LapManager.LeaderboardEntry before;
+					if (tm != null && tm.lapManager != null && tm.lapManager.leaderboard.TryGetValue(rc.gameObject, out before))
+					{
+						wreckedLaps[peer.Id] = before; // the lap manager drops the dead car; the respawned one carries on from here
+					}
 					Combat.Kill(rc, killer == Room.LocalId);
 				}
 			}

@@ -103,6 +103,8 @@ namespace Multiplayer
 			{
 				ScreenReady = true; // no screen wanted: the cover, if any, can go
 			}
+			// The Steam backend listens for invites from the moment it exists: make it now, not at the first HOST or JOIN, or an invite before that is lost.
+			Room.EnsureBackend(true);
 			if (!fromCommandLineDone)
 			{
 				fromCommandLineDone = true;
