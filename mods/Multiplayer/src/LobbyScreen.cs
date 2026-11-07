@@ -17,6 +17,26 @@ namespace Multiplayer
 	/// </summary>
 	internal sealed class LobbyScreen : MonoBehaviour
 	{
+		private sealed class ItemTile
+		{
+			internal UpgradeComponent Item;
+			internal Image Frame;
+			internal Image Icon;
+			internal Image Ban;
+			internal bool Shown;
+		}
+
+		/// <summary>Reports the item under the mouse to the ITEMS view.</summary>
+		private sealed class ItemHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+		{
+			internal Action<UpgradeComponent> Over;
+			internal UpgradeComponent Item;
+
+			public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData data) { Over(Item); }
+
+			public void OnPointerExit(UnityEngine.EventSystems.PointerEventData data) { Over(null); }
+		}
+
 		private sealed class SettingRow
 		{
 			internal RectTransform Root;
@@ -83,6 +103,14 @@ namespace Multiplayer
 		private readonly List<SettingRow> botRows = new List<SettingRow>();
 		private RectTransform botsView;
 		private bool showBots;
+		private RectTransform itemsView;
+		private bool showItems;
+		private RectTransform itemsContent;
+		private TMP_Text itemsCount;
+		private TMP_Text itemsHover;
+		private Button allowAllButton;
+		private readonly List<ItemTile> itemTiles = new List<ItemTile>();
+		private UpgradeComponent hoveredItem;
 		private TMP_Text botsInfo;
 		private TMP_Text gridWarning;
 		private ScrollRect memberScroll;
@@ -224,7 +252,7 @@ namespace Multiplayer
 			startButton = Big(inside, "START RACE", 7f, new Vector2(ButtonX[3], ButtonY), () => Room.StartRace());
 			startTip = Ui.Label(inside, "", 28f, Ui.Amber, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
 			HoverTip.Attach(startButton, startTip, () => Room.AllReady ? "" : "Not all players are ready.");
-			waitText = Ui.Label(inside, "", 28f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 100f), new Vector2(520f, 40f));
+			waitText = Ui.Label(inside, "", 28f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(ButtonX[3], ButtonY - 110f), new Vector2(700f, 90f));
 		}
 
 		/// <summary>Builds player rows up to <paramref name="count"/> (they are made when a room first needs them, up to the lobby's ceiling).</summary>
@@ -329,9 +357,11 @@ namespace Multiplayer
 			revolverText = Ui.Label(view, "", 28f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft1 + 355f, -215f), new Vector2(710f, 90f));
 			gridWarning = Ui.Label(view, "", 24f, Orange, TextAlignmentOptions.TopLeft, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft0 + 355f, 0f), new Vector2(710f, 84f));
 			Big(view, "BACK", 8.5f, new Vector2(ButtonX[0], SettingsButtonY), () => { showSettings = false; Refresh(); });
+			Big(view, "ITEMS", 8.5f, new Vector2(ButtonX[2], SettingsButtonY), () => { showItems = true; Refresh(); });
 			Big(view, "BOTS", 8.5f, new Vector2(ButtonX[3], SettingsButtonY), () => { showBots = true; Refresh(); });
 			view.gameObject.SetActive(false);
 			BuildBots(root, headerTemplate);
+			BuildItems(root, headerTemplate);
 		}
 
 		/// <summary>The bots' own view: how aggressive they drive and shoot, how they are kitted, and whether they are all alike.</summary>
@@ -353,6 +383,122 @@ namespace Multiplayer
 			botsInfo = Ui.Label(view, "", 30f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0.5f, 0.5f), new Vector2(ColumnLeft1 + 355f, 10f), new Vector2(710f, 470f)); // top at 245: under the WHAT THEY DO header (bottom at 272)
 			Big(view, "BACK", 8.5f, new Vector2(ButtonX[0], SettingsButtonY), () => { showBots = false; Refresh(); });
 			view.gameObject.SetActive(false);
+		}
+
+		private const float TileSize = 104f, TilePitch = 116f;
+		private static Sprite banSprite;
+
+		/// <summary>A red ring with a diagonal bar, the "not allowed" sign.</summary>
+		private static Sprite BanSprite()
+		{
+			if (banSprite != null)
+			{
+				return banSprite;
+			}
+			const int n = 96;
+			Texture2D tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
+			tex.filterMode = FilterMode.Bilinear;
+			float c = (n - 1) / 2f, outer = n / 2f - 3f, inner = outer - 8f;
+			for (int y = 0; y < n; y++)
+			{
+				for (int x = 0; x < n; x++)
+				{
+					float dx = x - c, dy = y - c;
+					float d = Mathf.Sqrt(dx * dx + dy * dy);
+					float ring = Mathf.Clamp01(Mathf.Min(outer - d, d - inner) + 0.5f);
+					float bar = Mathf.Clamp01(4.5f - Mathf.Abs(dx + dy) / 1.4142f + 0.5f) * Mathf.Clamp01(outer - d + 0.5f); // top left to bottom right
+					tex.SetPixel(x, y, new Color(0.9f, 0.12f, 0.12f, Mathf.Max(ring, bar)));
+				}
+			}
+			tex.Apply();
+			banSprite = Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), 100f);
+			return banSprite;
+		}
+
+		/// <summary>The host's item list: the game's collection, with a click banning or allowing each item for the room.</summary>
+		private void BuildItems(Transform root, GameObject headerTemplate)
+		{
+			RectTransform view = Ui.Box("Items", root, Color.black);
+			Ui.Stretch(view, 0f);
+			itemsView = view;
+			GameObject header = Instantiate(headerTemplate, view, false);
+			header.name = "Header";
+			header.GetComponent<TMP_Text>().text = "ITEMS";
+			itemsCount = Ui.Label(view, "", 36f, Ui.Amber, TextAlignmentOptions.Right, new Vector2(0.5f, 0.5f), new Vector2(560f, 300f), new Vector2(700f, 56f));
+			itemsHover = Ui.Label(view, "", 34f, Color.white, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(-370f, 300f), new Vector2(1100f, 56f));
+			RectTransform content;
+			Ui.ScrollList(view, "Tiles", new Vector2(0f, -20f), new Vector2(1800f, 560f), out content);
+			itemsContent = content;
+			Big(view, "BACK", 8.5f, new Vector2(ButtonX[0], SettingsButtonY), () => { showItems = false; Refresh(); });
+			allowAllButton = Big(view, "ALLOW ALL", 7f, new Vector2(ButtonX[3], SettingsButtonY), () => Edit(s => s.Banned.Clear()));
+			view.gameObject.SetActive(false);
+		}
+
+		/// <summary>Makes the tiles the first time the view is shown (the item catalog is complete by then, mods' items included).</summary>
+		private void EnsureItemTiles()
+		{
+			List<UpgradeComponent> items = Loadout.Bannable();
+			if (itemTiles.Count == items.Count && itemTiles.Count > 0)
+			{
+				return;
+			}
+			Ui.Clear(itemsContent);
+			itemTiles.Clear();
+			int columns = Mathf.Max(1, Mathf.FloorToInt((1800f - 12f) / TilePitch));
+			for (int i = 0; i < items.Count; i++)
+			{
+				UpgradeComponent item = items[i];
+				int col = i % columns, row = i / columns;
+				RectTransform frame = Ui.Box("Item " + item.id, itemsContent, Ui.Row);
+				Ui.Anchor(frame, new Vector2(0.5f, 1f), new Vector2((col - (columns - 1) / 2f) * TilePitch, -row * TilePitch - 8f), new Vector2(TileSize, TileSize));
+				RectTransform icon = Ui.Box("Icon", frame, Color.white);
+				Ui.Stretch(icon, 8f);
+				Image iconImage = icon.GetComponent<Image>();
+				iconImage.sprite = item.image;
+				iconImage.preserveAspect = true;
+				iconImage.raycastTarget = false;
+				iconImage.enabled = item.image != null;
+				RectTransform ban = Ui.Box("Ban", frame, Color.white);
+				Ui.Stretch(ban, 4f);
+				Image banImage = ban.GetComponent<Image>();
+				banImage.sprite = BanSprite();
+				banImage.raycastTarget = false;
+				Button click = frame.gameObject.AddComponent<Button>();
+				click.transition = Selectable.Transition.None;
+				click.targetGraphic = frame.GetComponent<Image>();
+				string id = item.id;
+				click.onClick.AddListener(() => Edit(s => { if (!s.Banned.Add(id)) { s.Banned.Remove(id); } }));
+				ItemHover hover = frame.gameObject.AddComponent<ItemHover>();
+				hover.Item = item;
+				hover.Over = u => hoveredItem = u;
+				itemTiles.Add(new ItemTile { Item = item, Frame = frame.GetComponent<Image>(), Icon = iconImage, Ban = banImage });
+			}
+			Ui.SetListHeight(itemsContent, 560f, ((items.Count + columns - 1) / columns) * TilePitch + 16f);
+		}
+
+		private void RefreshItems()
+		{
+			EnsureItemTiles();
+			int banned = 0;
+			foreach (ItemTile t in itemTiles)
+			{
+				bool off = Room.Settings.IsBanned(t.Item.id);
+				if (off)
+				{
+					banned++;
+				}
+				if (!t.Shown || t.Ban.enabled != off)
+				{
+					t.Shown = true;
+					t.Ban.enabled = off;
+					t.Frame.color = off ? new Color(0.05f, 0.05f, 0.06f, 1f) : Ui.Row;
+					t.Icon.color = off ? new Color(0.2f, 0.2f, 0.22f, 1f) : Color.white;
+				}
+			}
+			itemsCount.text = banned == 0 ? Tx.T("ALL ITEMS ALLOWED") : Tx.F("{0} BANNED", banned);
+			Holder(allowAllButton).SetActive(Room.IsHost);
+			allowAllButton.interactable = banned > 0;
+			itemsHover.text = hoveredItem == null ? (Room.IsHost ? Tx.T("Click an item to ban or allow it.") : "") : Loc.T(hoveredItem.Name) + (Room.Settings.IsBanned(hoveredItem.id) ? "  (" + Tx.T("BANNED") + ")" : "");
 		}
 
 		/// <summary>
@@ -828,6 +974,12 @@ namespace Multiplayer
 				ShowFriends(false);
 				return;
 			}
+			if (showItems)
+			{
+				showItems = false;
+				Refresh();
+				return;
+			}
 			if (showBots)
 			{
 				showBots = false;
@@ -855,6 +1007,7 @@ namespace Multiplayer
 		{
 			showSettings = false;
 			showBots = false;
+			showItems = false;
 			Refresh();
 		}
 
@@ -878,12 +1031,14 @@ namespace Multiplayer
 			{
 				showSettings = false;
 				showBots = false;
+				showItems = false;
 			}
 			home.gameObject.SetActive(!inRoom);
 			bool results = inRoom && (Room.Phase == Phase.Results || Room.ViewingResults);
 			inside.gameObject.SetActive(inRoom && !showSettings && !results);
-			settingsView.gameObject.SetActive(showSettings && !showBots);
-			botsView.gameObject.SetActive(showSettings && showBots);
+			settingsView.gameObject.SetActive(showSettings && !showBots && !showItems);
+			botsView.gameObject.SetActive(showSettings && showBots && !showItems);
+			itemsView.gameObject.SetActive(showSettings && showItems);
 			resultsView.gameObject.SetActive(results);
 			bool idle = Room.Busy.Length == 0;
 			hostButton.interactable = idle;
@@ -912,7 +1067,11 @@ namespace Multiplayer
 			}
 			if (showSettings)
 			{
-				if (showBots)
+				if (showItems)
+				{
+					RefreshItems();
+				}
+				else if (showBots)
 				{
 					RefreshBots();
 				}
@@ -977,7 +1136,8 @@ namespace Multiplayer
 			Peer me = Room.Me;
 			bool lobby = Room.Phase == Phase.Lobby;
 			Holder(readyButton).SetActive(!Room.IsHost);
-			readyButton.interactable = lobby && me != null;
+			List<string> bannedOnCar = Room.IsHost || !lobby ? new List<string>() : Loadout.FittedBanned();
+			readyButton.interactable = lobby && me != null && bannedOnCar.Count == 0;
 			Ui.SetText(readyButton, me != null && me.Ready ? "NOT READY" : "READY");
 			Holder(startButton).SetActive(Room.IsHost);
 			bool canStart = lobby && Room.AllReady && (Room.Settings.Map == RaceSettings.RandomMap || Garage.FindMap(Room.Settings.Map) != null);
@@ -985,7 +1145,17 @@ namespace Multiplayer
 			startButton.targetGraphic.color = canStart ? Color.white : new Color(0.45f, 0.45f, 0.45f, 1f);
 			settingsButton.interactable = lobby;
 			roomGarageButton.interactable = lobby;
-			waitText.text = Room.IsHost ? "" : (me != null && me.Ready ? "Waiting for the host to start." : "Press READY when your car is set.");
+			if (bannedOnCar.Count > 0)
+			{
+				string names = string.Join(", ", bannedOnCar.Take(3).ToArray()) + (bannedOnCar.Count > 3 ? "..." : "");
+				waitText.text = Tx.T("Banned items on your car:") + " " + names + "\n" + Tx.T("Open the GARAGE to take them off.");
+				waitText.color = Ui.Amber;
+			}
+			else
+			{
+				waitText.text = Room.IsHost ? "" : (me != null && me.Ready ? "Waiting for the host to start." : "Press READY when your car is set.");
+				waitText.color = Ui.Soft;
+			}
 		}
 
 		private void RefreshSettings()

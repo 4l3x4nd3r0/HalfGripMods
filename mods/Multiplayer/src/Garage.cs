@@ -55,27 +55,51 @@ namespace Multiplayer
 			return mapper == null ? new List<UpgradeComponent>() : mapper.allUpgrades;
 		}
 
-		/// <summary>The Inverter: an hourglass in the cockpit (an <c>NInverter</c>) that rewinds time, which cannot be done in a shared race.</summary>
-		private static bool RewindsTime(UpgradeComponent u)
-		{
-			if (u.id != null && u.id.IndexOf("invert", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				return true;
-			}
-			return (u.interiorPrefab != null && u.interiorPrefab.GetComponentInChildren<NInverter>(true) != null) || (u.exteriorPrefab != null && u.exteriorPrefab.GetComponentInChildren<NInverter>(true) != null);
-		}
-
 		/// <summary>
-		/// What multiplayer does not offer: slow motion (it would slow every player's game) the Inverter (it rewinds time) and everything that belongs to a single-player
-		/// run: map rerolls, run boons (lives, permanent stats) and other consumables. Nitro (NO2) stays.
+		/// What multiplayer never offers: everything that belongs to a single-player run: map rerolls, run boons (lives, permanent stats), beer and other
+		/// consumables. Nitro (NO2) stays. Slow motion and the Inverter are offered: in a room they act on every player (<see cref="SharedTime"/>).
 		/// </summary>
-		internal static bool Banned(UpgradeComponent u)
+		internal static bool RunOnly(UpgradeComponent u)
 		{
 			if (u is NO2)
 			{
 				return false;
 			}
-			return u is SlowMotion || u is RerollMapUpgrade || u is RunBoonUpgrade || u is BeerUpgrade || u.upgradeCategory == UpgradeCategory.CONSUMABLE || RewindsTime(u);
+			return u is RerollMapUpgrade || u is RunBoonUpgrade || u is BeerUpgrade || u.upgradeCategory == UpgradeCategory.CONSUMABLE;
+		}
+
+		/// <summary>Not offered in the garage: run-only items, and what the host of the room we are in has banned.</summary>
+		internal static bool Banned(UpgradeComponent u)
+		{
+			return RunOnly(u) || HostBanned(u.id);
+		}
+
+		internal static bool HostBanned(string id)
+		{
+			return Room.Active && Room.Settings != null && Room.Settings.IsBanned(id);
+		}
+
+		/// <summary>Every item the host can ban or allow: all that multiplayer offers at all, one per id, in the collection's order (category, then id).</summary>
+		internal static List<UpgradeComponent> Bannable()
+		{
+			return Items().Where(u => u != null && !u.disabled && !RunOnly(u)).GroupBy(u => u.id).Select(g => g.First())
+				.OrderBy(u => u.upgradeCategory).ThenBy(u => u.id, StringComparer.Ordinal).ToList();
+		}
+
+		/// <summary>The ids in the remembered fitting that the room's host has banned.</summary>
+		internal static List<string> FittedBanned()
+		{
+			Load();
+			List<string> found = new List<string>();
+			foreach (string entry in Equipped.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+			{
+				string[] parts = entry.Split(':');
+				if (parts.Length == 2 && HostBanned(parts[1]) && !found.Contains(parts[1]))
+				{
+					found.Add(parts[1]);
+				}
+			}
+			return found;
 		}
 
 		/// <summary>The garage slot (the scene's InventorySlot names) an item of this kind is fitted into.</summary>
@@ -136,6 +160,7 @@ namespace Multiplayer
 			Mod.Log.LogInfo("Not offered in multiplayer: " + string.Join(", ", Items().Where(u => u != null && !u.disabled && Banned(u)).Select(u => u.id).ToArray()));
 			HashSet<string> ids = new HashSet<string>(usable.Select(u => u.id));
 			List<string> fitted = new List<string>();
+			List<string> takenOff = new List<string>();
 			HashSet<string> used = new HashSet<string>();
 			foreach (string entry in Equipped.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
 			{
@@ -144,6 +169,18 @@ namespace Multiplayer
 				{
 					fitted.Add(entry);
 				}
+				else if (parts.Length == 2 && HostBanned(parts[1]) && !takenOff.Contains(parts[1]))
+				{
+					takenOff.Add(parts[1]);
+				}
+			}
+			if (takenOff.Count > 0)
+			{
+				// the host banned what was fitted: it comes off the car and the remembered fitting, and the player is told
+				Equipped = string.Join(",", fitted.ToArray());
+				Persist();
+				Mod.Log.LogInfo("Banned by the host and taken off the car: " + string.Join(", ", takenOff.ToArray()));
+				Room.Say("The host banned: " + string.Join(", ", takenOff.ToArray()) + ". Taken off your car.", 8f);
 			}
 			if (fitted.Count == 0)
 			{

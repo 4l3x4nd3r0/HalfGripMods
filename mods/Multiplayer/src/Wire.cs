@@ -38,7 +38,13 @@ namespace Multiplayer
 		Chat = 30,
 		Skin = 31,
 		ModData = 32,
-		AiRespawned = 33
+		AiRespawned = 33,
+		/// <summary>Host to clients: the host's race clock, so every machine's TimeSinceRaceStart agrees.</summary>
+		Clock = 34,
+		/// <summary>A slow-motion lever was pulled (client to host, then host to all): the seconds it runs.</summary>
+		SlowMo = 35,
+		/// <summary>An Inverter was flipped (client to host, then host to all): everybody's car rewinds.</summary>
+		Rewind = 36
 	}
 
 	/// <summary>Writes one packet.</summary>
