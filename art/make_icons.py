@@ -218,6 +218,7 @@ def main():
         "RPG": load("RPG", "rpg_icon.png"),
         "SniperRifle": load("SniperRifle", "sniper_icon.png"),
         "Railgun": load("Railgun", "railgun_icon.png"),
+        "JudgmentDay": load("JudgmentDay", "jd_icon.png"),
         "Minigun": load("Minigun", "minigun_icon.png"),
         "SpeedCharms": charms(),
         "DaciaBody": load("DaciaBody", "dacia_icon.png"),
