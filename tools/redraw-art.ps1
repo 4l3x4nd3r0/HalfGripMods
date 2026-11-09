@@ -1,10 +1,10 @@
 ﻿# Redraws the pixel art with the scripts in art\ and copies the results into each mod's sprites folder.
 # Not needed to play or to build: the finished PNGs are already in mods\*\sprites. Needs Python with Pillow
-# (numpy for the Sniper art; UnityPy for the RPG art, which reads the game's launcher texture).
+# (numpy for the Sniper and Judgment Day art, and the Judgment Day reference picture art\jd_reference.png, which is not in the repo; UnityPy for the RPG art, which reads the game's launcher texture).
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $art = "$root\art"
-foreach ($script in "make_sprites", "make_rpg_sprites", "make_sniper_sprites", "make_bomb_sprites", "make_railgun_sprites", "make_minigun_sprites", "make_dacia_sprites", "make_speed_sprites", "make_highway_icon") {
+foreach ($script in "make_sprites", "make_rpg_sprites", "make_sniper_sprites", "make_bomb_sprites", "make_railgun_sprites", "make_jd_sprites", "make_minigun_sprites", "make_dacia_sprites", "make_speed_sprites", "make_highway_icon") {
 	python -I "$art\$script.py"
 	if ($LASTEXITCODE -ne 0) { throw "$script failed" }
 }
@@ -16,6 +16,7 @@ Put "rpg_*.png" "RPG" @("rpg_preview.png")
 Put "sniper_*.png" "SniperRifle" @("sniper_preview.png", "sniper_render.png")
 Put "bomb_*.png" "BombRace" @("bomb_preview.png")
 Put "railgun_*.png" "Railgun" @("railgun_preview.png")
+Put "jd_*.png" "JudgmentDay" @("jd_preview.png", "jd_reference.png")
 Put "minigun_*.png" "Minigun" @("minigun_preview.png")
 Put "dacia_icon.png" "DaciaBody"
 Put "highway_icon.png" "Highway"

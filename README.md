@@ -8,6 +8,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | RPG | Legendary rocket launcher, reloaded by hand | `giveitem rpg` |
 | SniperRifle | Legendary bolt-action rifle with scope and charge shot | `giveitem sniper_rifle` |
 | Railgun | Legendary railgun with six capacitors that charge while you drive with it raised, 10 to 90 damage | `giveitem railgun` |
+| JudgmentDay | Legendary lever-action shotgun, the pump shotgun at double the price: circle the mouse while it is raised to spin-cock it one-handed, or work the lever by hand | `giveitem judgment_day` |
 | Minigun | Legendary roof minigun aimed with a Wii-style remote, unlimited ammo limited by heat | `giveitem minigun` |
 | SpeedCharms | 3 passives for top speed and engine power. JSON only | `giveitem winners_grip`, `rabbits_foot`, `dragster_chute` |
 | DaciaBody | Dacia Logan rally body with its own 3D model | `giveitem dacia_body` |
@@ -17,7 +18,7 @@ Mods for Half Grip Demo (Steam, Windows), made by 4l3x4nd3r. They run on [HalfGr
 | TempleOfDrift | Race map built in code: a touge of hairpins down a mountain, a temple and a Shinto torii, a dirt road and a cave that splits in two, with its own eurobeat track. In the run map pool | none, shows up as a map |
 | Multiplayer | Races for 2 to 6 players over Steam (CUSTOM mode: up to 20): host-run room, same mods required, PvP damage and AI rivals set by the host | none, the MULTIPLAYER button in the main menu |
 
-Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, Railgun, Minigun, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
+Cheats: type `pirgflah` in Settings, then press `` ` `` for the console. You do not need them: M1911, RPG, SniperRifle, Railgun, JudgmentDay, Minigun, SpeedCharms and DaciaBody turn up in shops and race rewards like any other item.
 
 All mods are made for game version 0.419. On another version they still load, and the mod manager shows a warning sign next to them.
 
@@ -46,7 +47,7 @@ If you do not like running unknown software, the detailed steps are below, and t
 
 ```
 BepInEx\HalfGripMods\
-  M1911\  RPG\  SniperRifle\  Railgun\  Minigun\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  TempleOfDrift\  Multiplayer\
+  M1911\  RPG\  SniperRifle\  Railgun\  JudgmentDay\  Minigun\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  TempleOfDrift\  Multiplayer\
 ```
 
 3. Start the game, quit, open `BepInEx\LogOutput.log`. Each mod that loaded has a line:
@@ -74,6 +75,9 @@ Pull the bolt back, drag a cartridge onto the open breech, push the bolt forward
 
 ### Railgun
 Takes the pump shotgun's place: a scrap-built gauss gun with a rusty exhaust-pipe barrel, six ignition coils on a welded rack, a car battery strapped underneath with jumper cables, a hazard-striped receiver and a bent-pipe stock. The pump is an air pump with a pressure gauge on it. You load it one round at a time (4) and pump to chamber. While the gun is raised with a ball chambered it charges its six capacitors (the ignition coils on top). Driving at full speed fills all six in 2 seconds; standing still takes 5, and in between it follows your speed. Each capacitor is a level of charge and only a full one counts: a shot does 10 damage plus 13 for every loaded capacitor, 90 with all six. A capacitor fills slowly at first and in a rush at the end, and lights up from the bottom, with arcs jumping between the spark plugs and the gauge needle swinging over. A lamp on the receiver is green when a ball is chambered and red when it is not. It is drawn at the shotgun's own size, in the cockpit and in your hand, and pumping it throws no shells. Lower it and the charge drains on a clock at half that rate. The shot is a blue-white beam with a crack and a zap and a burst of sparks at the muzzle. A bar of six cells under the crosshair shows the capacitors. Legendary, cost 70. Settings: `MinDamage`, `MaxDamage`, `ChargeSeconds`, `StillChargeSeconds`, `FullSpeed`, `DrainShare`, `Cost`, `GunScale`, `HeldScale`, `ScreenBar`.
+
+### JudgmentDay
+The pump shotgun's place goes to a lever-action shotgun in the shape of the Winchester 1887 from the Terminator films: short barrel, long walnut forend, big finger-ring lever. Same damage, pellets, tube size and recoil as the pump shotgun, double the price (Legendary). Load shells into the tube as usual. To chamber a round you can work the lever by hand: grab the loop and drag it down, then let it back up. Or do it the Terminator way with one hand: while the gun is raised and the chamber is empty, circle the mouse once and the gun flips over its lever, which opens and closes, and the next shell is chambered. You cannot fire during the 0.8 s flip. A circle with a shell already chambered does the game's own twirl, and with an empty tube it does nothing. After each reload the spin counter is cleared, so you have to circle again for the next one. Settings: `CostMultiplier`, `TurnsPerCock` (how many turns of the game's spin counter cock the gun), `FlipSeconds`, `LeverAngle`, `FlipPivotBack`, `LeverSpring`, `LoadedHold`, `LeverReach`, `GrabMargin`, `DragDown`. The game's pump sprite and held pump part are hidden while it is fitted.
 
 ### Minigun
 The SMG slot becomes a worn Wii-style remote: grab it and raise it to aim, hold fire for the barrels to spin up (0.4 s), then 20 bullets a second at 5 damage. The bullets leave from a minigun on the roof of the car. There is no ammo: a HEAT display across the dash fills and goes redder with every shot. It holds 3.9 s of fire (78 bullets, enough for three or four cars) and cools by itself in 20 s once you stop. The resting remote hangs on the roof lining between the mirror and the leaderboard, and the roof turret shows on the car in the garage too (solo and in a room), flying on and off with the slot. If it fills, the remote gets a padlock and cannot be picked up or fired for 60 s (120 s the second time in a race, and so on). An ammo box takes 1.3 s of heat off and 15 s off a running lock, or says "Ammo already full" when the gun is cold and unlocked. Legendary, cost 120. Settings: `Damage`, `RoundsPerSecond`, `Magazines`, `SecondsPerMagazine`, `CoolSeconds`, `OverheatPenalty`, `RepeatPenalty`, `BoxLockRelief`, `SpinUp`, `Cost`, `RemoteAuto`, `RemoteShift`, `DisplayShift`, `DisplayScale`, `HeldScale`, `RoofGun`.
@@ -207,7 +211,7 @@ How to write a mod: [WRITING_MODS.md](https://github.com/4l3x4nd3r0/HalfGripTool
 
 ## Art
 
-`art/` has the Python scripts that draw the sprites. The finished PNGs are already in `mods/*/sprites`, so you only need Python to redraw them. `redraw-art.ps1` runs the scripts and copies the results. The RPG art also needs UnityPy (it reads the game's launcher texture), the Sniper art needs numpy.
+`art/` has the Python scripts that draw the sprites. The finished PNGs are already in `mods/*/sprites`, so you only need Python to redraw them. `redraw-art.ps1` runs the scripts and copies the results. The RPG art also needs UnityPy (it reads the game's launcher texture), the Sniper and Judgment Day art need numpy. The Judgment Day art is made from a picture that is not in the repo (see the top of `art/make_jd_sprites.py`), so its PNGs in `mods/JudgmentDay/sprites` are not redrawn unless you provide it.
 
 ## Credits and licence
 
@@ -217,5 +221,7 @@ Not covered by MIT:
 
 - `mods/DaciaBody/dacia_model.txt`: converted from the model `2026-dacia-logan-ollis-garage-racing`. The archive had no licence, so its terms are unknown. If you are the author and want it removed or credited differently, open an issue.
 - `mods/SniperRifle/sprites/sniper_*.png` and `art/sniper_render.png`: a render of a low-poly TF2 Sniper Rifle model, licence unknown. Team Fortress 2 belongs to Valve.
+
+- `mods/JudgmentDay/sprites/jd_*.png`: the gun's shape was taken from a picture of the Winchester 1887 on the Terminator wiki and repainted in the game's style; licence of that picture unknown. The Terminator films and their props belong to their owners.
 
 Half Grip belongs to its developers. This project is fan-made and not affiliated with them.
