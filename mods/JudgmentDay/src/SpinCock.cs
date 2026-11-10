@@ -13,7 +13,7 @@ namespace JudgmentDay
 	/// </summary>
 	internal class SpinCock : MonoBehaviour
 	{
-		private static readonly FieldInfo AngleField = AccessTools.Field(typeof(Gun), "pendulumCumulativeAngle");
+		private static readonly MethodInfo AimGetter = AccessTools.PropertyGetter(typeof(Gun), "AimScreenPoint");
 
 		private static readonly MethodInfo ResetPendulum = AccessTools.Method(typeof(Gun), "ResetPendulum");
 
@@ -23,7 +23,42 @@ namespace JudgmentDay
 
 		private Art.HeldLever heldLever;
 
+		private int rackFrames;
+
+		private bool rackDone;
+
+		// The turn in progress: where it started, how far it has got in one direction, and for how long. A back-and-forth swing of the
+		// mouse (the weight sloshing side to side) never adds up; only a steady circle does.
 		private float mark;
+
+		private float extreme;
+
+		private float runTime;
+
+		private const float BackStep = 0.8f;
+
+		// The circle is measured on the cursor itself, not on the game's swinging weight (which lags and swings, so one circle cocked it
+		// at once and the next not at all): the direction the cursor travels in is smoothed, and the angle it turns through is summed.
+		// A slow cursor does not count, and a turn of more than MaxTurnStep in one frame (a reversal, as in swinging side to side) ends the run.
+		private const float MinSpeed = 0.15f;
+
+		private const float VelocitySmoothing = 30f;
+
+		private const float MaxTurnStep = 2f;
+
+		private Vector2 lastPoint;
+
+		private Vector2 smoothVelocity;
+
+		private float lastHeading;
+
+		private float turned;
+
+		private bool hasPoint;
+
+		private bool hasHeading;
+
+		private bool reversed;
 
 		private bool wasGrabbed;
 
@@ -33,22 +68,41 @@ namespace JudgmentDay
 
 		private bool sawEmptyTube;
 
+		private MagazineManager shells;
+
+		private int oldShellsPerPickup;
+
 		public bool Flipping => flipTime >= 0f;
+
+		// The shot may be fired as soon as the round is in the chamber, without waiting for the flip to finish.
+		public bool CanFire => !Flipping || chamberedThisFlip;
 
 		public void Setup(NPumpActionGun owner)
 		{
 			gun = owner;
 			gun.gunSpin = true;
+			// Every ammo pickup or kill refill is this many shells (a "magazine" of a shotgun is one shell for the pump).
+			shells = owner.shellHolder != null ? owner.shellHolder.GetComponent<MagazineManager>() : null;
+			if (shells != null)
+			{
+				oldShellsPerPickup = shells.entitiesPerMagazine;
+				shells.entitiesPerMagazine = Mathf.Max(1, Mod.ShellsPerPickup.Value);
+			}
+			else
+			{
+				Mod.Log.LogWarning("No MagazineManager on the shell holder: pickups give the pump shotgun's one shell");
+			}
+			ShellArt.Casing(owner.spentCasing);
 			Art.HeldParts parts = Art.ReskinHeldModel(owner);
 			heldBody = parts != null ? parts.Body : null;
 			heldLever = parts != null ? parts.Lever : null;
-			if (AngleField == null)
+			if (AimGetter == null)
 			{
-				Mod.Log.LogWarning("Gun.pendulumCumulativeAngle was not found: the game changed, the spin-cock cannot read the spin");
+				Mod.Log.LogWarning("Gun.AimScreenPoint was not found: the spin-cock reads the mouse position instead");
 			}
 			if (Mod.DumpInfo.Value)
 			{
-				Mod.Log.LogInfo($"Judgment Day set up on '{owner.name}': capacity={owner.capacity}, bullets={owner.bullets}, spin trigger {owner.spinRotationsToTrigger} turns in {owner.spinDetectionWindow} s (the game's own twirl)");
+				Mod.Log.LogInfo($"Judgment Day set up on '{owner.name}': capacity={owner.capacity}, bullets={owner.bullets}, spin trigger {owner.spinRotationsToTrigger} turns in {owner.spinDetectionWindow} s (the game's own twirl); shells per pickup {oldShellsPerPickup} -> {(shells != null ? shells.entitiesPerMagazine : 0)}");
 			}
 		}
 
@@ -62,11 +116,56 @@ namespace JudgmentDay
 			{
 				gun.gunSpin = false;
 			}
+			if (shells != null)
+			{
+				shells.entitiesPerMagazine = oldShellsPerPickup;
+			}
 		}
 
-		private float Angle()
+		private Vector2 AimPoint()
 		{
-			return AngleField == null ? 0f : (float)AngleField.GetValue(gun);
+			if (AimGetter != null)
+			{
+				return (Vector2)AimGetter.Invoke(gun, null);
+			}
+			return Input.mousePosition;
+		}
+
+		// The cursor's total turning so far, in radians (the angle its direction of travel has turned through, counted signed).
+		private float Heading()
+		{
+			Vector2 point = AimPoint() / Mathf.Max(1f, Screen.height);
+			float dt = InteriorMath.DeltaTime;
+			if (!hasPoint || dt <= 0.00001f)
+			{
+				lastPoint = point;
+				hasPoint = true;
+				return turned;
+			}
+			Vector2 velocity = (point - lastPoint) / dt;
+			lastPoint = point;
+			smoothVelocity = Vector2.Lerp(smoothVelocity, velocity, 1f - Mathf.Exp(-VelocitySmoothing * dt));
+			if (smoothVelocity.magnitude < MinSpeed)
+			{
+				hasHeading = false;
+				return turned;
+			}
+			float heading = Mathf.Atan2(smoothVelocity.y, smoothVelocity.x);
+			if (hasHeading)
+			{
+				float step = Mathf.DeltaAngle(lastHeading * Mathf.Rad2Deg, heading * Mathf.Rad2Deg) * Mathf.Deg2Rad;
+				if (Mathf.Abs(step) > MaxTurnStep)
+				{
+					reversed = true;
+				}
+				else
+				{
+					turned += step;
+				}
+			}
+			lastHeading = heading;
+			hasHeading = true;
+			return turned;
 		}
 
 		private void LateUpdate()
@@ -75,9 +174,17 @@ namespace JudgmentDay
 			{
 				return;
 			}
+			// The shells' row on the dash is laid out a few frames in, once everything has found its place.
+			if (!rackDone && ++rackFrames >= 5)
+			{
+				rackDone = true;
+				Rack.Layout(gun);
+			}
 			if (!gun.grabbed)
 			{
 				wasGrabbed = false;
+				hasPoint = false;
+				hasHeading = false;
 				if (Flipping)
 				{
 					// Put down mid-flip: the reload still happens, the animation was started.
@@ -91,30 +198,44 @@ namespace JudgmentDay
 				}
 				return;
 			}
-			float angle = Angle();
+			float angle = Heading();
+			if (reversed)
+			{
+				reversed = false;
+				LogDropped("reversed");
+				ResetRun(angle);
+			}
 			if (!wasGrabbed)
 			{
 				wasGrabbed = true;
-				mark = angle;
+				ResetRun(angle);
 			}
 			if (Flipping)
 			{
-				mark = angle;
+				ResetRun(angle);
+				if (chamberedThisFlip && !gun.loaded)
+				{
+					// Fired as soon as it was chambered: the rest of the flip is dropped.
+					flipTime = -1f;
+					heldLever?.Set(0f);
+					ForgetSpin();
+					return;
+				}
 				Animate();
 				return;
 			}
 			if (gun.loaded)
 			{
 				// A live shell: nothing to cock. Keep following the spin so the next turn starts from here.
-				mark = angle;
+				ResetRun(angle);
 				sawEmptyTube = false;
 				return;
 			}
-			if (Mathf.Abs(angle - mark) < Mod.TurnsPerCock.Value * 2f * Mathf.PI)
+			if (!Turned(angle))
 			{
 				return;
 			}
-			mark = angle;
+			ResetRun(angle);
 			if (gun.bullets > 0)
 			{
 				StartFlip();
@@ -126,6 +247,52 @@ namespace JudgmentDay
 				{
 					Mod.Log.LogInfo("Spin-cock: a turn with an empty chamber and an empty tube, nothing to chamber");
 				}
+			}
+		}
+
+		private void ResetRun(float angle)
+		{
+			mark = angle;
+			extreme = angle;
+			runTime = 0f;
+		}
+
+		// True once the weight has gone round TurnsPerCock turns in ONE direction within SpinWindow seconds. Turning back by more than
+		// BackStep radians, or taking too long, starts the count again from where it is.
+		private bool Turned(float angle)
+		{
+			float run = extreme - mark;
+			float step = angle - extreme;
+			if (run == 0f || Mathf.Sign(step) == Mathf.Sign(run))
+			{
+				extreme = angle;
+			}
+			else if (Mathf.Abs(step) > BackStep)
+			{
+				LogDropped("turned back");
+				ResetRun(angle);
+				return false;
+			}
+			if (extreme != mark)
+			{
+				runTime += InteriorMath.DeltaTime;
+				if (runTime > Mod.SpinWindow.Value)
+				{
+					LogDropped("too slow");
+					ResetRun(angle);
+					return false;
+				}
+			}
+			return Mathf.Abs(extreme - mark) >= Mod.TurnsPerCock.Value * 2f * Mathf.PI;
+		}
+
+		// For tuning: a run that got well on its way and then failed.
+		private void LogDropped(string why)
+		{
+			float turns = Mathf.Abs(extreme - mark) / (2f * Mathf.PI);
+			if (Mod.DumpInfo.Value && turns > 0.4f)
+			{
+				Mod.Log.LogInfo($"Spin-cock: a turn dropped at {turns:0.00} of {Mod.TurnsPerCock.Value} turns ({why}, {runTime:0.0} s)");
 			}
 		}
 
@@ -141,7 +308,7 @@ namespace JudgmentDay
 			}
 		}
 
-		// The flip takes FlipSeconds; the shell goes into the chamber 60% of the way through, with the pump's release sound; firing is
+		// The flip takes FlipSeconds; the shell goes into the chamber halfway through, with the pump's release sound; firing is
 		// blocked until it ends.
 		private void Animate()
 		{
@@ -150,7 +317,7 @@ namespace JudgmentDay
 			float t = flipTime / seconds;
 			// Keep the game's twirl from picking up the spin that cocked the gun: a new one has to be made.
 			ForgetSpin();
-			if (!chamberedThisFlip && t >= 0.6f)
+			if (!chamberedThisFlip && t >= 0.5f)
 			{
 				Chamber();
 				SoundController.PlayRandomSound2D(gun.reloadReleaseSounds, gameObject);
@@ -199,7 +366,7 @@ namespace JudgmentDay
 		private void ForgetSpin()
 		{
 			ResetPendulum?.Invoke(gun, null);
-			mark = Angle();
+			ResetRun(turned);
 		}
 
 		// The next shell goes into the chamber, like a pump stroke: a spent case is thrown out first.

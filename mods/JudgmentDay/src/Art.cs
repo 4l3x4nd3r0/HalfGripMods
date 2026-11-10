@@ -79,6 +79,7 @@ namespace JudgmentDay
 			public MeshRenderer Body;
 
 			public HeldLever Lever;
+
 		}
 
 		// The held model's pictures by size: the body without its lever (258x48); the lever is a mesh of its own. The pump part (33x15) is hidden: this gun has no pump. The shell stays the game's.
@@ -93,42 +94,42 @@ namespace JudgmentDay
 
 		// The lever as its own held mesh: its picture is a 258x48 layer with the loop in place, extruded into the same box as the body so it lines up,
 		// and hung under a pivot object placed at the hinge so turning the pivot turns the lever about it.
-		private static HeldLever BuildHeldLever(Gun gun, MeshRenderer body, Mesh source, Material original, string bodyKey)
+		private static HeldLever BuildHeldPart(Gun gun, MeshRenderer body, Mesh source, Material original, string bodyKey, string layerFile, float hingeX, float hingeY, string label)
 		{
 			if (!maps.TryGetValue(bodyKey, out Mapping map) || map == null)
 			{
 				Mod.Log.LogWarning("The held body has no picture mapping, so the held lever stays baked in the body");
 				return null;
 			}
-			Texture2D art = Mod.Ctx.Sprites.LoadTexture("jd_lever_layer.png");
+			Texture2D art = Mod.Ctx.Sprites.LoadTexture(layerFile);
 			if (art == null || art.width != 258 || art.height != 48)
 			{
-				Mod.Log.LogWarning("jd_lever_layer.png is missing or not 258x48: no held lever");
+				Mod.Log.LogWarning(layerFile + " is missing or not 258x48: no held " + label);
 				return null;
 			}
-			string key = "jd_lever_layer.png|" + bodyKey;
+			string key = layerFile + "|" + bodyKey;
 			if (!meshes.TryGetValue(key, out Mesh mesh) || mesh == null)
 			{
-				mesh = Extrude(art, source, body, gun.aimModel, out string reason, out Mapping ignored);
+				mesh = Extrude(art, source, body, gun.aimModel, out string reason, out Mapping ignored, 1.12f);
 				if (mesh == null)
 				{
-					Mod.Log.LogWarning("Held lever: " + reason);
+					Mod.Log.LogWarning("Held " + label + ": " + reason);
 					return null;
 				}
 				meshes[key] = mesh;
 			}
-			var pivot = new GameObject("jd held lever pivot");
+			var pivot = new GameObject("jd held " + label + " pivot");
 			pivot.layer = body.gameObject.layer;
 			pivot.transform.SetParent(body.transform, false);
-			Vector3 hinge = map.Point(Lever.HingeX, Lever.HingeY);
+			Vector3 hinge = map.Point(hingeX, hingeY);
 			pivot.transform.localPosition = hinge;
-			var part = new GameObject("jd held lever");
+			var part = new GameObject("jd held " + label);
 			part.layer = body.gameObject.layer;
 			part.transform.SetParent(pivot.transform, false);
 			part.transform.localPosition = -hinge;
 			part.AddComponent<MeshFilter>().sharedMesh = mesh;
 			var renderer = part.AddComponent<MeshRenderer>();
-			var material = new Material(original) { name = "Judgment Day lever", hideFlags = HideFlags.HideAndDontSave };
+			var material = new Material(original) { name = "Judgment Day " + label, hideFlags = HideFlags.HideAndDontSave };
 			material.SetTexture("_BaseMap", art);
 			material.SetTexture("_MainTex", art);
 			renderer.sharedMaterial = material;
@@ -137,11 +138,11 @@ namespace JudgmentDay
 
 			// Which way is "clockwise in the picture" about the thickness axis in model space: a point right of the hinge must move down the picture.
 			Vector3 axis = map.T == 0 ? Vector3.right : map.T == 1 ? Vector3.up : Vector3.forward;
-			Vector3 toPoint = map.Point(Lever.HingeX + 20f, Lever.HingeY) - hinge;
-			Vector3 down = map.Point(Lever.HingeX, Lever.HingeY + 1f) - map.Point(Lever.HingeX, Lever.HingeY);
+			Vector3 toPoint = map.Point(hingeX + 20f, hingeY) - hinge;
+			Vector3 down = map.Point(hingeX, hingeY + 1f) - map.Point(hingeX, hingeY);
 			Vector3 moved = Quaternion.AngleAxis(5f, axis) * toPoint - toPoint;
 			float sign = Vector3.Dot(moved, down) >= 0f ? 1f : -1f;
-			Mod.Log.LogInfo($"Held lever built: hinge {hinge}, axis {map.T}, clockwise sign {sign}");
+			Mod.Log.LogInfo($"Held {label} built: hinge {hinge}, axis {map.T}, clockwise sign {sign}");
 			return new HeldLever { Pivot = pivot.transform, Axis = axis, Sign = sign };
 		}
 
@@ -217,16 +218,16 @@ namespace JudgmentDay
 				if (file == "jd_body.png")
 				{
 					bodyRenderer = renderer;
-					heldLever = BuildHeldLever(gun, renderer, source, original, key);
+					heldLever = BuildHeldPart(gun, renderer, source, original, key, "jd_lever_layer.png", Lever.HingeX, Lever.HingeY, "lever");
 				}
 				swapped++;
 			}
-			Mod.Log.LogInfo("Held Judgment Day model: replaced " + swapped + " parts, held lever " + (heldLever != null ? "built" : "not built"));
+			Mod.Log.LogInfo("Held Judgment Day model: replaced " + swapped + " parts, held lever " + (heldLever != null ? "built" : "not built") + "");
 			return new HeldParts { Body = bodyRenderer, Lever = heldLever };
 		}
 
 		// Extrudes the picture into the box of the game's own mesh, along the axes and in the directions that suit the aim.
-		private static Mesh Extrude(Texture2D art, Mesh source, MeshRenderer renderer, Transform aim, out string reason, out Mapping map)
+		private static Mesh Extrude(Texture2D art, Mesh source, MeshRenderer renderer, Transform aim, out string reason, out Mapping map, float thick = 1f)
 		{
 			reason = null;
 			map = null;
@@ -295,7 +296,7 @@ namespace JudgmentDay
 				Vector3 p = new Vector3();
 				p[w] = b.min[w] + (sw > 0f ? u : 1f - u) * width;
 				p[h] = b.min[h] + (sh > 0f ? vUp : 1f - vUp) * height;
-				p[t] = b.center[t] + fv[i].y * b.size[t];
+				p[t] = b.center[t] + fv[i].y * b.size[t] * thick;
 				// Smaller (or bigger) about the middle of the game's box.
 				nv[i] = b.center + (p - b.center) * scale;
 				Vector3 n = new Vector3();

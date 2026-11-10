@@ -14,17 +14,22 @@ namespace JudgmentDay
 		// Where the pictures put things (art\make_jd_sprites.py prints these: the constants must match).
 		private const float BodyHeight = 48f;
 
-		internal const float HingeX = 159f;
+		internal const float HingeX = 145f;
 
-		internal const float HingeY = 25f;
+		internal const float HingeY = 23f;
 
-		private const float LeverWidth = 44f;
+		// The part of the lever that can be grabbed: this share of the picture's width and height, at the bottom of the loop.
+		private const float HandleWidthShare = 0.8f;
 
-		private const float LeverHeight = 33f;
+		private const float HandleHeightShare = 0.5f;
 
-		private const float LeverHingeX = 13f;
+		private const float LeverWidth = 40f;
 
-		private const float LeverHingeY = 7f;
+		private const float LeverHeight = 24f;
+
+		private const float LeverHingeX = 5f;
+
+		private const float LeverHingeY = 5f;
 
 		// The slug shotgun's sprites, read from the game's race scene, and what stands in for each. Every file is the size of the sprite
 		// it replaces. The shells are the game's own.
@@ -35,6 +40,9 @@ namespace JudgmentDay
 			{ "IMG_3632_cover", "jd_clear.png" },
 			{ "IMG_3633_0", "jd_pump_clear.png" }
 		};
+
+		/// <summary>The lever's pump while it is fitted (the drag patch only touches this one).</summary>
+		internal static LinearObject Pump;
 
 		private NPumpActionGun gun;
 
@@ -53,6 +61,7 @@ namespace JudgmentDay
 		public void Setup(NPumpActionGun owner)
 		{
 			gun = owner;
+			Pump = owner.pump;
 			EaseAction();
 			int swapped = 0;
 			foreach (SpriteRenderer renderer in Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
@@ -124,7 +133,7 @@ namespace JudgmentDay
 			Sprite body = bodySprite.sprite;
 			if (texture == null || texture.width != (int)LeverWidth || texture.height != (int)LeverHeight)
 			{
-				Mod.Log.LogWarning("jd_lever.png is missing or not 44x33: no swinging lever");
+				Mod.Log.LogWarning("jd_lever.png is missing or not 40x24: no swinging lever");
 				return;
 			}
 			float ppu = body.pixelsPerUnit;
@@ -140,7 +149,7 @@ namespace JudgmentDay
 			var renderer = go.AddComponent<SpriteRenderer>();
 			renderer.sprite = sprite;
 			renderer.sortingLayerID = bodySprite.sortingLayerID;
-			renderer.sortingOrder = bodySprite.sortingOrder + 1;
+			renderer.sortingOrder = bodySprite.sortingOrder + 2;
 			renderer.sharedMaterial = bodySprite.sharedMaterial;
 			lever = go.transform;
 			lever2D = renderer;
@@ -165,7 +174,16 @@ namespace JudgmentDay
 			}
 			placed = true;
 			Transform pump = gun.pump.transform;
-			Vector3 offset = lever2D.bounds.center - pumpSprite.bounds.center;
+			// Only the bottom of the loop is the handle: the grab area is moved to the lowest part of the lever and cut down to its size, so
+			// the rest of the lever (and the gun round it) is not caught by the cursor.
+			Bounds lb = lever2D.bounds;
+			Vector3 downWorld = -lever2D.transform.up;
+			Vector3 rightWorld = lever2D.transform.right;
+			float handleWidth = lb.size.x * HandleWidthShare;
+			float handleHeight = lb.size.y * HandleHeightShare;
+			// The picture is padded on its top left, so the loop's bottom arc sits a little right of the picture's middle.
+			Vector3 handle = lb.center + downWorld * (lb.size.y * 0.5f - handleHeight * 0.5f) + rightWorld * (lb.size.x * 0.08f);
+			Vector3 offset = handle - pumpSprite.bounds.center;
 			Vector3 world = pump.position + offset;
 			Vector3 local = pump.parent != null ? pump.parent.InverseTransformPoint(world) : world;
 			gun.pump.ResetRestPose(local, pump.localRotation);
@@ -185,12 +203,49 @@ namespace JudgmentDay
 			if (gun.pump.attachedCollider != null)
 			{
 				oldMargin = gun.pump.attachedCollider.hitBoxExpand;
-				gun.pump.attachedCollider.hitBoxExpand = Mathf.Max(oldMargin, Mod.GrabMargin.Value);
+				gun.pump.attachedCollider.hitBoxExpand = Mod.GrabMargin.Value;
 			}
+			string shrunk = ShrinkHandle(gun.pump.attachedCollider, handle, rightWorld, -downWorld, handleWidth, handleHeight);
 			if (Mod.DumpInfo.Value)
 			{
-				Mod.Log.LogInfo($"Judgment Day: pump grab area moved onto the lever by {offset} (pump sprite centre {pumpSprite.bounds.center}, lever centre {lever2D.bounds.center}); drag axis angle {oldAngle:0.00} -> {gun.pump.anchorAngle:0.00} (limits {gun.pump.minLimit}..{gun.pump.maxLimit}); grab margin {oldMargin} -> {(gun.pump.attachedCollider != null ? gun.pump.attachedCollider.hitBoxExpand : 0f)}");
+				Mod.Log.LogInfo($"Judgment Day: pump grab area moved onto the lever by {offset} (pump sprite centre {pumpSprite.bounds.center}, lever centre {lever2D.bounds.center}); drag axis angle {oldAngle:0.00} -> {gun.pump.anchorAngle:0.00} (limits {gun.pump.minLimit}..{gun.pump.maxLimit}); grab margin {oldMargin} -> {(gun.pump.attachedCollider != null ? gun.pump.attachedCollider.hitBoxExpand : 0f)}; handle {handleWidth:0.##} x {handleHeight:0.##} world units: {shrunk}");
 			}
+		}
+
+		// Cuts the pump's grab shape down to a box of the given world size (a square collider's width and height, a circle's radius, a
+		// capsule's radius and length), whatever way round the collider's own plane runs.
+		private static string ShrinkHandle(InteriorCollider collider, Vector3 centre, Vector3 right, Vector3 up, float width, float height)
+		{
+			if (collider == null)
+			{
+				return "no collider";
+			}
+			Vector2 origin = collider.WorldToPlane(centre);
+			Vector2 perRight = collider.WorldToPlane(centre + right) - origin;
+			Vector2 perUp = collider.WorldToPlane(centre + up) - origin;
+			float planeW = Mathf.Abs(perRight.x) * width + Mathf.Abs(perUp.x) * height;
+			float planeH = Mathf.Abs(perRight.y) * width + Mathf.Abs(perUp.y) * height;
+			if (collider is InteriorSquareCollider square)
+			{
+				string was = square.width + "x" + square.height;
+				square.width = planeW;
+				square.height = planeH;
+				return "square " + was + " -> " + planeW.ToString("0.##") + "x" + planeH.ToString("0.##");
+			}
+			if (collider is InteriorCapsuleCollider capsule)
+			{
+				string was = "r " + capsule.radius + " to " + capsule.otherPoint;
+				capsule.radius = Mathf.Min(planeW, planeH) * 0.5f;
+				capsule.otherPoint = planeW >= planeH ? new Vector2(planeW - planeH, 0f) : new Vector2(0f, planeH - planeW);
+				return "capsule " + was + " -> r " + capsule.radius.ToString("0.##");
+			}
+			if (collider is InteriorCircleCollider circle)
+			{
+				string was = "r " + circle.radius;
+				circle.radius = Mathf.Min(planeW, planeH) * 0.5f;
+				return "circle " + was + " -> r " + circle.radius.ToString("0.##");
+			}
+			return "unknown collider type " + collider.GetType().Name + ", size kept";
 		}
 
 		private void Update()
