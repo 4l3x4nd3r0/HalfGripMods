@@ -1,9 +1,9 @@
 {
   "id": "judgmentday",
   "name": "Judgment Day",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "4l3x4nd3r",
-  "description": "A Legendary lever-action shotgun, the pump shotgun at double the price. Circle the mouse while it is raised to spin-cock it one-handed and keep firing, or work the lever by hand.",
+  "description": "A Race-spec lever-action shotgun: 50 damage, 5 shells, two shells per ammo pickup. Circle the mouse while it is raised to spin-cock it one-handed and keep firing, or work the lever by hand.",
   "icon": "icon.png",
   "gameVersion": "0.419"
 }
