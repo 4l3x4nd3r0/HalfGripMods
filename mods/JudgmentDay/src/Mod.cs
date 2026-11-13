@@ -53,7 +53,7 @@ namespace JudgmentDay
 			Ctx = ctx;
 
 			CostMultiplier = ctx.Config.Bind("Judgment Day", "CostMultiplier", 2f, "Shop price as a multiple of the pump shotgun's price.");
-			Damage = ctx.Config.Bind("Judgment Day", "Damage", 60f, "Damage of a shot (the pump shotgun does 60). Takes effect for a new run.");
+			Damage = ctx.Config.Bind("Judgment Day", "Damage", 50f, "Damage of a shot (the pump shotgun does 60). Takes effect for a new run.");
 			TubeShells = ctx.Config.Bind("Judgment Day", "TubeShells", 5, "Shells in the tube once a round is chambered. The gun carries this plus one in all (the pump shotgun carries 4); with the lever open all of them can be loaded before the first is chambered.");
 			StartShells = ctx.Config.Bind("Judgment Day", "StartShells", 6, "Spare shells on the dash (the rack) at the start of a race (the pump shotgun has 4).");
 			ShellsPerPickup = ctx.Config.Bind("Judgment Day", "ShellsPerPickup", 3, "Shells an ammo pickup or a kill refill gives (the pump shotgun gives 1).");
