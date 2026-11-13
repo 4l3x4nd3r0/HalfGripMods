@@ -67,7 +67,10 @@ namespace HalfGripRpg
 			}
 			made.forceHide.Add("fire rate");
 
-			Sprite icon = Mod.Ctx.Sprites.LoadSprite("rpg_icon.png", smg.image);
+			// The drawn icon is wider than the game's cards (49 px); its density is raised in proportion so it keeps the card width.
+			Texture2D iconTexture = Mod.Ctx.Sprites.LoadTexture("rpg_icon.png");
+			float density = iconTexture != null && iconTexture.width > 45 ? smg.image.pixelsPerUnit * iconTexture.width / 45f : 0f;
+			Sprite icon = Mod.Ctx.Sprites.LoadSprite("rpg_icon.png", smg.image, density);
 			if (icon != null)
 			{
 				made.image = icon;

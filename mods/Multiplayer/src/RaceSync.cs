@@ -238,6 +238,9 @@ namespace Multiplayer
 			Vector3 position = pts[at] + Vector3.up * 0.8f;
 			List<EnemyController> enemies = Traverse.Create(tm).Field("enemies").GetValue<List<EnemyController>>();
 			EnemyController fresh = SpawnAi(tm, enemies, position, rotation, index);
+			// The game switches AI driving on for every car at GO and for its own mid-race spawns one frame after they are made
+			// (TrackManager.StartDriving); a car made here would otherwise aim and shoot but never drive (EnemyController needs canMove).
+			fresh.canMove = true;
 			aiReal[index] = fresh;
 			aiReported.Remove(index);
 			AiStat stat;

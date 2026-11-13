@@ -8,7 +8,7 @@ namespace JudgmentDay
 	/// <summary>
 	/// Judgment Day as an item: a Legendary gun card cloned from the game's pump shotgun item, so it has a gun slot, a tube that takes
 	/// loose shells and a place in the shop and the save for free. Pellets, spread and recoil are the shotgun's; damage, capacity, spare
-	/// shells and the tier (Race-spec) are set from the config, and the price is the shotgun's times CostMultiplier.
+	/// shells and the tier (Legendary) are set from the config, and the price is the shotgun's times CostMultiplier.
 	/// </summary>
 	internal static class JudgmentDayItem
 	{
@@ -47,10 +47,10 @@ namespace JudgmentDay
 			made.description = "Judgment Day\n<color=#7e7e7e>I'll be back.</color>"
 				+ "\n<color=#6fb7b4>Circle the mouse while aiming to spin-cock it</color>"
 				+ "\n<color=#6fb7b4>Or work the lever by hand</color>"
-				+ "\n<color=#6fb7b4>Shells go in with the lever open</color>";
+				+ "\n<color=#6fb7b4>Lever must be opened to load shells</color>";
 			made.secondaryDescription = "";
 			made.gunType = GunType.SHOTGUN;
-			made.tier = ItemTier.RaceSpec;
+			made.tier = ItemTier.Legendary;
 			made.damage = Mod.Damage.Value;
 			made.capacity = Mod.TubeShells.Value + 1;     // the game counts the tube and the chamber together
 			made.magazines = Mod.StartShells.Value;
