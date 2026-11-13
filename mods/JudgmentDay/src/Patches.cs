@@ -101,35 +101,73 @@ namespace JudgmentDay
 		}
 	}
 
-	// While the lever is dragged the game moves it by the cursor's travel times the reach and clamps it at its ends, so cursor movement past
-	// the end has to be undone before the lever comes back: pulling it all the way down and straight back up needed a release in between.
-	// The end of the travel now absorbs that overshoot, so reversing the drag moves the lever at once (one sweep: down and up).
+	// The lever is the game's pump, and the game reads a drag as where the cursor's ray meets the pump's movement plane, along the pump's
+	// axis. The lever is pulled down, which is a steep direction in that plane, so a few pixels of mouse became big jumps and a small wobble
+	// at the bottom of the swing sent it back up. While the lever is held it is driven from the mouse's vertical travel instead (the same
+	// cursor formula the game uses): down opens it, up closes it, and travel past either end is dropped, so only an upward movement closes
+	// it again. The game's own spring, half-way snap, racking and chambering still run on the value this produces. A gamepad's cursor does
+	// not show up in the mouse delta, so it keeps working only through the game's own drag (DragDown off).
 	[HarmonyPatch(typeof(LinearObject), "StepDirect")]
-	internal static class LeverOvertravelPatch
+	internal static class LeverDragPatch
 	{
+		private static readonly FieldInfo S = AccessTools.Field(typeof(LinearObject), "s");
+
 		private static readonly FieldInfo GrabStart = AccessTools.Field(typeof(LinearObject), "grabStartS");
 
 		private static readonly FieldInfo HandStart = AccessTools.Field(typeof(LinearObject), "handStartS");
 
 		private static readonly MethodInfo HandS = AccessTools.Method(typeof(LinearObject), "HandS");
 
-		private static void Postfix(LinearObject __instance)
+		private static bool wasGrabbed;
+
+		private static float dragS;
+
+		private static Grabber grabber;
+
+		private static bool warned;
+
+		private static void Prefix(LinearObject __instance)
 		{
-			if (__instance != Lever.Pump || !__instance.IsGrabbed || GrabStart == null || HandStart == null || HandS == null)
+			if (__instance != Lever.Pump || !Mod.DragDown.Value)
 			{
 				return;
 			}
-			float hand = (float)HandS.Invoke(__instance, new object[] { __instance.constrainedPoint });
-			float start = (float)GrabStart.GetValue(__instance);
-			float target = start + (hand - (float)HandStart.GetValue(__instance)) * __instance.CDRatio;
-			if (target > __instance.maxLimit)
+			if (!__instance.IsGrabbed)
 			{
-				GrabStart.SetValue(__instance, start - (target - __instance.maxLimit));
+				wasGrabbed = false;
+				return;
 			}
-			else if (target < __instance.minLimit)
+			if (S == null || GrabStart == null || HandStart == null || HandS == null)
 			{
-				GrabStart.SetValue(__instance, start + (__instance.minLimit - target));
+				if (!warned)
+				{
+					warned = true;
+					Mod.Log.LogWarning("LinearObject fields for the lever drag were not found: the lever uses the game's own drag");
+				}
+				return;
 			}
+			if (!wasGrabbed)
+			{
+				wasGrabbed = true;
+				dragS = (float)S.GetValue(__instance);
+				if (grabber == null)
+				{
+					grabber = Object.FindFirstObjectByType<Grabber>();
+				}
+				if (Mod.DumpInfo.Value)
+				{
+					Mod.Log.LogInfo($"Judgment Day lever drag: grabbed at {dragS:0.00} of {__instance.minLimit}..{__instance.maxLimit}, a full pull is {Mod.LeverDrag.Value} of the screen height, grabber {(grabber != null ? "found" : "MISSING")}");
+				}
+			}
+			if (grabber != null && !GameInput.Muted)
+			{
+				float heights = -Input.mousePositionDelta.y * grabber.cursorSensitivity * Grabber.HandSensitivity / 1080f;
+				float travel = __instance.maxLimit - __instance.minLimit;
+				dragS = Mathf.Clamp(dragS + heights / Mathf.Max(0.02f, Mod.LeverDrag.Value) * travel, __instance.minLimit, __instance.maxLimit);
+			}
+			// The game works out its target as grabStartS + (HandS - handStartS) * CDRatio: with these two set that is exactly dragS.
+			GrabStart.SetValue(__instance, dragS);
+			HandStart.SetValue(__instance, (float)HandS.Invoke(__instance, new object[] { __instance.constrainedPoint }));
 		}
 	}
 }

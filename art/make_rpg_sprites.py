@@ -4,7 +4,7 @@ The texture holds a side view of the launcher and, above it, the rocket. From th
   rpg_body.png        the launcher (shown at a higher pixel density than the SMG, see RpgItem.cs)
   rpg_rocket.png      the rocket stood upright, in the 16x56 canvas of the SMG's magazine (used for the loaded and empty one)
   rpg_rocket_side.png the rocket lying down, warhead first (97x25), for the 3D models
-  rpg_icon.png        31x18 inventory icon
+  rpg_icon.png        inventory icon (art/drawn/rpg_icon.png when present, else 31x18 generated)
   rpg_clear_*.png     fully transparent stand-ins for the SMG's slide, round and feed sprites, which the launcher has no use for
 """
 import os
@@ -59,6 +59,9 @@ def main():
     small = launcher.resize((31, max(1, round(launcher.height * scale))), Image.LANCZOS)
     icon = Image.new("RGBA", (31, 18), CLEAR)
     icon.alpha_composite(small, (0, (18 - small.height) // 2))
+    drawn = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drawn", "rpg_icon.png")
+    if os.path.exists(drawn):
+        icon = Image.open(drawn).convert("RGBA")  # the hand-drawn icon (49x16) replaces the generated one
     icon.save(os.path.join(OUT, "rpg_icon.png"))
 
     Image.new("RGBA", (83, 17), CLEAR).save(os.path.join(OUT, "rpg_clear_slide.png"))

@@ -96,8 +96,7 @@ namespace JudgmentDay
 
 		// The pump shotgun's action is stiff: the pump is pulled shut by springs, ten times stronger while a shell is chambered, so that
 		// it cannot be worked open on a live round. A lever should move easily. UpdatePump rewrites the pump's spring every frame from the
-		// two private base values it kept in Awake, so those are scaled; the live-shell hold is a public field; and the control-display
-		// ratio makes a short drag move the lever further.
+		// two private base values it kept in Awake, so those are scaled; the live-shell hold is a public field; (the drag itself is LeverDragPatch).
 		private void EaseAction()
 		{
 			if (gun.pump == null)
@@ -119,10 +118,9 @@ namespace JudgmentDay
 				}
 			}
 			gun.loadedHoldSpringMultiplier = Mod.LoadedHold.Value;
-			gun.pump.CDRatio = Mod.LeverReach.Value;
 			if (Mod.DumpInfo.Value)
 			{
-				Mod.Log.LogInfo($"Judgment Day lever action eased: spring share {Mod.SpringShare.Value}, live-shell hold x{Mod.LoadedHold.Value} (game 10), reach {Mod.LeverReach.Value}; pump springs were {before} / {gun.pump.physicsObjectSpringForce}, mass {gun.pump.mass}, friction {gun.pump.linearFriction}, limits {gun.pump.minLimit}..{gun.pump.maxLimit}");
+				Mod.Log.LogInfo($"Judgment Day lever action eased: spring share {Mod.SpringShare.Value}, live-shell hold x{Mod.LoadedHold.Value} (game 10), drag {Mod.LeverDrag.Value}; pump springs were {before} / {gun.pump.physicsObjectSpringForce}, mass {gun.pump.mass}, friction {gun.pump.linearFriction}, limits {gun.pump.minLimit}..{gun.pump.maxLimit}");
 			}
 		}
 
