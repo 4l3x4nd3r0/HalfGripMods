@@ -1,9 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using BepInEx.Logging;
@@ -18,7 +15,7 @@ namespace Multiplayer
 	/// </summary>
 	internal static class Checksums
 	{
-		internal const int Protocol = 9;
+		internal const int Protocol = 10;
 
 		internal sealed class ModSum
 		{
@@ -26,8 +23,6 @@ namespace Multiplayer
 			internal string Version;
 			internal string Hash;
 		}
-
-		private static readonly string[] TextExtensions = { ".cs", ".json", ".txt", ".md" };
 
 		private static List<ModSum> mods;
 		private static string combined;
@@ -73,24 +68,9 @@ namespace Multiplayer
 			mods = new List<ModSum>();
 			try
 			{
-				// HalfGripTools keeps the loaded mods in an internal list; there is no public way to read it.
-				Type loader = typeof(HalfGripMod).Assembly.GetType("HalfGripTools.ModLoader");
-				PropertyInfo property = loader == null ? null : loader.GetProperty("Mods", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-				IEnumerable contexts = property == null ? null : property.GetValue(null, null) as IEnumerable;
-				if (contexts == null)
+				foreach (LoadedMod mod in LoadedMods.All)
 				{
-					log.LogError("Could not read the loaded mod list from HalfGripTools (ModLoader.Mods). Rooms will refuse everyone.");
-				}
-				else
-				{
-					foreach (object item in contexts)
-					{
-						ModContext context = item as ModContext;
-						if (context != null)
-						{
-							mods.Add(new ModSum { Id = context.Manifest.id, Version = context.Manifest.version, Hash = HashFolder(context.Folder) });
-						}
-					}
+					mods.Add(new ModSum { Id = mod.Id, Version = mod.Version, Hash = mod.Hash });
 				}
 			}
 			catch (Exception e)
@@ -110,47 +90,6 @@ namespace Multiplayer
 			combined = Hex(Sha(Encoding.UTF8.GetBytes(text.ToString()))).Substring(0, 32);
 
 			log.LogInfo("Mod checksum " + combined.Substring(0, 8) + " over " + mods.Count + " mod(s): " + ModLine);
-		}
-
-		/// <summary>SHA256 over every file in a mod folder: relative path and bytes, in a fixed order.</summary>
-		private static string HashFolder(string folder)
-		{
-			using (SHA256 sha = SHA256.Create())
-			{
-				string root = Path.GetFullPath(folder);
-				string[] files = Directory.GetFiles(root, "*", SearchOption.AllDirectories);
-				List<string> relative = files.Select(f => f.Substring(root.Length).TrimStart('\\', '/').Replace('\\', '/')).ToList();
-				// translations only change what one player reads, so a lang/ folder must not put anybody in another room
-				relative.RemoveAll(p => p.StartsWith("lang/", StringComparison.OrdinalIgnoreCase));
-				relative.Sort(string.CompareOrdinal);
-				foreach (string path in relative)
-				{
-					byte[] name = Encoding.UTF8.GetBytes(path + "\n");
-					sha.TransformBlock(name, 0, name.Length, null, 0);
-					byte[] data = File.ReadAllBytes(Path.Combine(root, path));
-					if (TextExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
-					{
-						data = StripCarriageReturns(data);
-					}
-					sha.TransformBlock(data, 0, data.Length, null, 0);
-				}
-				sha.TransformFinalBlock(new byte[0], 0, 0);
-				return Hex(sha.Hash);
-			}
-		}
-
-		/// <summary>A text file checked out with CRLF on one PC and LF on another is still the same mod.</summary>
-		private static byte[] StripCarriageReturns(byte[] data)
-		{
-			List<byte> kept = new List<byte>(data.Length);
-			foreach (byte b in data)
-			{
-				if (b != 13)
-				{
-					kept.Add(b);
-				}
-			}
-			return kept.ToArray();
 		}
 
 		private static byte[] Sha(byte[] data)

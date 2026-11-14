@@ -46,6 +46,6 @@ elseif (-not (Test-Path $toolsDll)) { Write-Warning "HalfGripTools is not instal
 
 foreach ($dir in Get-ChildItem "$root\mods" -Directory) {
 	if ($Mod -ne "" -and $dir.Name -ne $Mod) { continue }
-	robocopy $dir.FullName "$GameDir\BepInEx\HalfGripMods\$($dir.Name)" /MIR /NFL /NDL /NJH /NJS | Out-Null
+	robocopy $dir.FullName "$GameDir\BepInEx\HalfGripMods\$($dir.Name)" /MIR /XD bin obj .vs /XF *.csproj .gitignore /NFL /NDL /NJH /NJS | Out-Null
 	Write-Host "Installed $($dir.Name)"
 }
