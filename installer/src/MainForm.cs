@@ -64,6 +64,9 @@ namespace HalfGripModsInstaller
 		private CheckResult last;
 		private string work;
 		private bool busy;
+
+		/// <summary>The work in progress is taking something out, not putting it in (the status bar says so).</summary>
+		private bool removing;
 		private string problemText = "";
 		private readonly Timer clock = new Timer { Interval = 60000 };
 		private DateTime lastAutoCheck = DateTime.UtcNow;
@@ -125,12 +128,18 @@ namespace HalfGripModsInstaller
 			hub.InstallRequested += mod => _ = RunInstall(new List<ModCandidate> { mod });
 			hub.BaseRequested += which => _ = RunInstallCore(new List<ModCandidate>(), which == "bepinex", which == "tools");
 			hub.RemoveRequested += source => RemoveLink(source.Source.Text);
+			hub.UninstallRequested += mod => _ = RunUninstall(mod);
 			hub.Opened += face => OpenDetails(face);
 			details.Closed += CloseDetails;
 			details.ButtonClicked += face =>
 			{
 				CloseDetails();
 				face.OnButton?.Invoke();
+			};
+			details.SecondaryClicked += face =>
+			{
+				CloseDetails();
+				face.OnSecondary?.Invoke();
 			};
 			details.OpenUrlRequested += OpenUrl;
 
@@ -519,6 +528,56 @@ namespace HalfGripModsInstaller
 			await RunCheck(false, false, ok);
 		}
 
+		/// <summary>Takes one mod out of the game. Asks first, with a box for its settings and saved data; never touches HalfGripTools, other mods or saves.</summary>
+		private async Task RunUninstall(ModCandidate mod)
+		{
+			if (busy || gameDir == null || mod.Installed == null)
+			{
+				return;
+			}
+			if (GameFolder.IsRunning())
+			{
+				MessageBox.Show(this, "Half Grip is running. Close the game and try again.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+				return;
+			}
+			bool alsoData;
+			using (UninstallDialog dialog = new UninstallDialog(mod.Name, Setup.DependentsOf(gameDir, mod.Folder)))
+			{
+				if (dialog.ShowDialog(this) != DialogResult.OK)
+				{
+					return;
+				}
+				alsoData = dialog.AlsoData;
+			}
+			// The game could have been started while the question was open.
+			if (GameFolder.IsRunning())
+			{
+				MessageBox.Show(this, "Half Grip is running. Close the game and try again.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+				return;
+			}
+			string dir = gameDir;
+			string folder = mod.Folder;
+			busy = true;
+			removing = true;
+			bar.Phase = Phase.Installing;
+			bar.Detail = "Removing " + mod.Name + " ...";
+			UpdateUi();
+			try
+			{
+				string said = await Task.Run(() => Setup.UninstallMod(dir, folder, alsoData));
+				Log.Write(said);
+			}
+			catch (Exception e)
+			{
+				Log.Write(e.ToString());
+				MessageBox.Show(this, Setup.Friendly(e), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+			}
+			busy = false;
+			removing = false;
+			bar.Phase = Phase.Ready;
+			await RunCheck(false, false, false);
+		}
+
 		private async Task RunRemove()
 		{
 			if (busy || gameDir == null)
@@ -546,6 +605,7 @@ namespace HalfGripModsInstaller
 				Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
 			string dir = gameDir;
 			busy = true;
+			removing = true;
 			bar.Phase = Phase.Installing;
 			bar.Detail = "Removing ...";
 			UpdateUi();
@@ -559,6 +619,7 @@ namespace HalfGripModsInstaller
 				MessageBox.Show(this, Setup.Friendly(e), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 			}
 			busy = false;
+			removing = false;
 			await RunCheck(false, false, false);
 		}
 
@@ -748,7 +809,7 @@ namespace HalfGripModsInstaller
 					bar.PrimaryEnabled = false;
 					break;
 				case Phase.Installing:
-					bar.Headline = "Installing ...";
+					bar.Headline = removing ? "Removing ..." : "Installing ...";
 					bar.Primary = "PLEASE WAIT";
 					bar.PrimaryEnabled = false;
 					break;

@@ -110,6 +110,7 @@ Needs the .NET SDK 8. Players need nothing: .NET Framework 4.8 is part of Window
 | `src\TopBar.cs` | title, add / star / menu buttons, tabs, search, the add-link box (flows into rows) |
 | `src\HubCanvas.cs` | the grid of cards (and `Face`, what a card shows), sections |
 | `src\DetailsPanel.cs` | the page that opens on a card click, and the How to use and About pages |
+| `src\UninstallDialog.cs` | the question before one mod is uninstalled, with a box for its settings and saved data |
 | `src\StatusBar.cs` | the bottom bar: state, "updated N min ago", the main button |
 | `src\Surface.cs`, `src\Theme.cs` | how the views draw and react; colours, fonts, the window scale, the game-style buttons |
 | `src\Config.cs` | `config.json`: the saved copy, the hourly refresh, the rules it is checked against |
@@ -117,7 +118,7 @@ Needs the .NET SDK 8. Players need nothing: .NET Framework 4.8 is part of Window
 | `src\Sources.cs` | turns a pasted link into a download address |
 | `src\Recommendations.cs` | turns the suggested links into sources |
 | `src\Checker.cs` | downloads, unpacks, finds mods, all the rules |
-| `src\Setup.cs` | which way HalfGripTools starts in this game, BepInEx where needed, HalfGripTools, copying mods, moving 1.x mod folders, remembering links, removal |
+| `src\Setup.cs` | which way HalfGripTools starts in this game, BepInEx where needed, HalfGripTools, copying mods, moving 1.x mod folders, remembering links, removal of everything or of one mod (`UninstallMod`) |
 | `src\Cache.cs`, `src\Net.cs` | the data folder and one-hour cache; downloads, checksums, plain error messages |
 | `src\SelfUpdate.cs` | notices a newer installer release |
 | `src\MiniJson.cs` | copy of HalfGripTools' JSON reader, so a `mod.json` is read the same way |

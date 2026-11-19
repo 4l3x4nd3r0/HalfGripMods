@@ -15,6 +15,9 @@ namespace HalfGripModsInstaller
 		/// <summary>The button on a mod's page was pressed.</summary>
 		internal event Action<Face> ButtonClicked;
 
+		/// <summary>The quiet button beside it (UNINSTALL) was pressed.</summary>
+		internal event Action<Face> SecondaryClicked;
+
 		internal event Action<string> OpenUrlRequested;
 
 		private Face face;
@@ -104,14 +107,20 @@ namespace HalfGripModsInstaller
 			bool canClick = f.ButtonEnabled && !busy;
 			Add(button, canClick ? () => ButtonClicked?.Invoke(f) : (Action)null, f.ButtonTip);
 			Theme.GameButton(g, button, f.Button, f.Grey ? ButtonLook.Grey : ButtonLook.Red, canClick, canClick && Over(button), 18);
-			if (f.Url.Length > 0)
+			// Beside the main button, as far as there is room: UNINSTALL first, then ON GITHUB.
+			int next = button.Right + S(10);
+			if (f.Secondary.Length > 0 && x + w - next >= S(90))
 			{
-				Rectangle open = new Rectangle(button.Right + S(10), button.Y + S(3), Math.Min(S(150), Math.Max(0, x + w - button.Right - S(10))), S(34));
-				if (open.Width > S(90))
-				{
-					Add(open, () => OpenUrlRequested?.Invoke(f.Url), "Open the GitHub page");
-					Theme.Outline(g, open, "ON GITHUB", Theme.Soft, false, Over(open), 14);
-				}
+				Rectangle quiet = new Rectangle(next, button.Y + S(3), Math.Min(S(150), x + w - next), S(34));
+				Add(quiet, !busy ? () => SecondaryClicked?.Invoke(f) : (Action)null, f.SecondaryTip);
+				Theme.Outline(g, quiet, f.Secondary, busy ? Theme.Dim : Theme.Red, false, !busy && Over(quiet), 14);
+				next = quiet.Right + S(10);
+			}
+			if (f.Url.Length > 0 && x + w - next >= S(90))
+			{
+				Rectangle open = new Rectangle(next, button.Y + S(3), Math.Min(S(150), x + w - next), S(34));
+				Add(open, () => OpenUrlRequested?.Invoke(f.Url), "Open the GitHub page");
+				Theme.Outline(g, open, "ON GITHUB", Theme.Soft, false, Over(open), 14);
 			}
 
 			int textTop = line2 + S(34);

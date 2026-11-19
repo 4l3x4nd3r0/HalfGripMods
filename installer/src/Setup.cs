@@ -67,6 +67,9 @@ namespace HalfGripModsInstaller
 		internal string Id = "";
 
 		internal string Version = "";
+
+		/// <summary>The ids in mod.json's "requires".</summary>
+		internal string[] Requires = new string[0];
 	}
 
 	/// <summary>
@@ -298,6 +301,7 @@ namespace HalfGripModsInstaller
 					{
 						mod.Id = MiniJson.String(obj, "id");
 						mod.Version = MiniJson.String(obj, "version", "1.0.0");
+						mod.Requires = MiniJson.List(obj, "requires").OfType<string>().ToArray();
 					}
 				}
 				catch (FormatException)
@@ -613,6 +617,97 @@ namespace HalfGripModsInstaller
 				}
 			}
 		}
+		/// <summary>The folders of the other installed mods that list this mod's id in their "requires". They would not work without it.</summary>
+		internal static string[] DependentsOf(string gameDir, string folder)
+		{
+			List<InstalledMod> all = ReadInstalled(gameDir);
+			string[] ids = all.Where(m => string.Equals(m.Folder, folder, StringComparison.OrdinalIgnoreCase) && m.Id.Length > 0).Select(m => m.Id).ToArray();
+			return all.Where(m => !string.Equals(m.Folder, folder, StringComparison.OrdinalIgnoreCase) && m.Requires.Any(r => ids.Contains(r, StringComparer.OrdinalIgnoreCase)))
+				.Select(m => m.Folder).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+		}
+
+		private static bool SafeName(string name)
+		{
+			return name.Length > 0 && name != "." && name != ".." && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && name.IndexOfAny(new[] { '/', '\\' }) < 0;
+		}
+
+		/// <summary>
+		/// Takes one mod out of the game: its folder in Mods (and in the old BepInEx\HalfGripMods), what the installer remembers about it and
+		/// the loader's compile cache for it. With <paramref name="alsoData"/> its settings file and saved data go too; without, they stay so a
+		/// reinstall finds them. Nothing else is touched: not HalfGripTools, not other mods, not the player's saves.
+		/// </summary>
+		internal static string UninstallMod(string gameDir, string folder, bool alsoData)
+		{
+			if (GameFolder.IsRunning())
+			{
+				throw new PlainException("Half Grip is running. Close the game and try again.");
+			}
+			if (!SafeName(folder))
+			{
+				throw new PlainException("'" + folder + "' is not a mod folder name, so nothing was removed.");
+			}
+			string id = "";
+			bool removed = false;
+			foreach (string root in new[] { ModsDir(gameDir), LegacyModsDir(gameDir) })
+			{
+				string dir = Path.Combine(root, folder);
+				if (!Directory.Exists(dir))
+				{
+					continue;
+				}
+				if (id.Length == 0)
+				{
+					id = ReadInstalled(gameDir).Where(m => string.Equals(m.Folder, folder, StringComparison.OrdinalIgnoreCase) && m.Id.Length > 0).Select(m => m.Id).FirstOrDefault() ?? "";
+				}
+				Directory.Delete(dir, true);
+				removed = true;
+			}
+			Memory memory = Memory.Load(gameDir);
+			if (memory.Mods.Remove(folder))
+			{
+				memory.Save(gameDir);
+			}
+			int extra = 0;
+			if (id.Length > 0 && Regex.IsMatch(id, "^[A-Za-z0-9._-]+$"))
+			{
+				string data = ToolsDataDir();
+				string legacyConfig = Path.Combine(gameDir, "BepInEx", "config");
+				// The compiled copy is rebuilt from the source the next time, so it always goes.
+				foreach (string cache in new[] { Path.Combine(data, "cache"), Path.Combine(gameDir, "BepInEx", "cache", "HalfGripMods") })
+				{
+					if (Directory.Exists(cache))
+					{
+						foreach (string file in Directory.GetFiles(cache, id + "-*.dll"))
+						{
+							File.Delete(file);
+						}
+					}
+				}
+				if (alsoData)
+				{
+					foreach (string file in new[] { Path.Combine(data, "config", id + ".cfg"), Path.Combine(legacyConfig, "halfgrip." + id + ".cfg") })
+					{
+						if (File.Exists(file))
+						{
+							File.Delete(file);
+							extra++;
+						}
+					}
+					string storage = Path.Combine(data, "storage", id);
+					if (Directory.Exists(storage))
+					{
+						Directory.Delete(storage, true);
+						extra++;
+					}
+				}
+			}
+			if (!removed)
+			{
+				return "There was no folder for " + folder + " in the game, so only the installer's note about it was cleared.";
+			}
+			return "Removed the mod " + folder + (alsoData ? (extra > 0 ? " and its settings and saved data." : ". It had no settings or saved data.") : ". Its settings and saved data were kept.");
+		}
+
 		/// <summary>Other plugins that live in BepInEx, named in the question about removing BepInEx.</summary>
 		internal static string[] OtherPlugins(string gameDir)
 		{

@@ -41,6 +41,11 @@ namespace HalfGripModsInstaller
 		internal bool ButtonEnabled;
 		internal bool Grey;
 		internal Action OnButton;
+
+		/// <summary>A second, quieter button beside the main one ("UNINSTALL" on a mod that is in the game). Empty when there is none.</summary>
+		internal string Secondary = "";
+		internal string SecondaryTip;
+		internal Action OnSecondary;
 	}
 
 	/// <summary>
@@ -71,6 +76,9 @@ namespace HalfGripModsInstaller
 		}
 
 		internal event Action<ModCandidate> InstallRequested;
+
+		/// <summary>The UNINSTALL button of a mod that is in the game.</summary>
+		internal event Action<ModCandidate> UninstallRequested;
 
 		internal event Action<SourceResult> RemoveRequested;
 
@@ -354,7 +362,10 @@ namespace HalfGripModsInstaller
 				ButtonEnabled = !blocked,
 				Grey = !blocked && m.Installed != null && m.Installed == m.Version,
 				OnButton = () => InstallRequested?.Invoke(m),
-				ButtonTip = blocked ? m.Problem : null
+				ButtonTip = blocked ? m.Problem : null,
+				Secondary = m.Installed != null ? "UNINSTALL" : "",
+				SecondaryTip = "Take this mod out of the game",
+				OnSecondary = () => UninstallRequested?.Invoke(m)
 			};
 		}
 
@@ -434,8 +445,20 @@ namespace HalfGripModsInstaller
 			int pad = S(10);
 			Rectangle button = new Rectangle(r.X + pad, r.Bottom - pad - S(32), r.Width - 2 * pad, S(32));
 			bool canClick = f.ButtonEnabled && !busy;
+			Rectangle second = Rectangle.Empty;
+			if (f.Secondary.Length > 0)
+			{
+				// The main button gives up its right end to the quiet one.
+				int w2 = S(88);
+				second = new Rectangle(button.Right - w2, button.Y, w2, button.Height);
+				button = new Rectangle(button.X, button.Y, button.Width - w2 - S(6), button.Height);
+			}
 			Add(r, () => Opened?.Invoke(f), f.Text.Length > 0 ? f.Text : null);
 			Add(button, canClick ? f.OnButton : null, f.ButtonTip);
+			if (!second.IsEmpty)
+			{
+				Add(second, !busy ? f.OnSecondary : null, f.SecondaryTip);
+			}
 			if (!visible)
 			{
 				return;
@@ -470,6 +493,10 @@ namespace HalfGripModsInstaller
 			Theme.Write(g, line, Theme.Body(8.5f), f.Warning.Length > 0 ? Theme.Amber : f.TextColor, new Rectangle(r.X + pad, y + S(44), r.Width - 2 * pad, S(18)));
 
 			Theme.GameButton(g, button, f.Button, f.Grey ? ButtonLook.Grey : ButtonLook.Red, canClick, canClick && Over(button), 15);
+			if (!second.IsEmpty)
+			{
+				Theme.Outline(g, second, f.Secondary, busy ? Theme.Dim : Theme.Red, false, !busy && Over(second), 11);
+			}
 		}
 	}
 }

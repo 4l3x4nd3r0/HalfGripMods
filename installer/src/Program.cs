@@ -51,6 +51,8 @@ namespace HalfGripModsInstaller
 			List<string> links = new List<string>();
 			bool check = false;
 			bool install = false;
+			string uninstall = null;
+			bool withData = false;
 			string render = null;
 			Size size = new Size(1100, 720);
 			string page = "";
@@ -86,6 +88,12 @@ namespace HalfGripModsInstaller
 					case "--page" when i + 1 < args.Length:
 						page = args[++i];
 						break;
+					case "--uninstall" when i + 1 < args.Length:
+						uninstall = args[++i];
+						break;
+					case "--with-data":
+						withData = true;
+						break;
 					case "--now":
 						Cache.Force = true;
 						break;
@@ -96,6 +104,12 @@ namespace HalfGripModsInstaller
 						install = true;
 						break;
 				}
+			}
+			if (uninstall != null)
+			{
+				AttachConsole(-1);
+				Log.ToConsole = true;
+				return HeadlessUninstall(gameDir, uninstall, withData);
 			}
 			if (check || install)
 			{
@@ -146,6 +160,32 @@ namespace HalfGripModsInstaller
 				form.Close();
 			}
 			return 0;
+		}
+
+		/// <summary>--uninstall &lt;mod folder&gt; [--with-data]: the same call the UNINSTALL button makes, for testing against a fake game folder.</summary>
+		private static int HeadlessUninstall(string gameDir, string folder, bool withData)
+		{
+			try
+			{
+				gameDir = gameDir ?? GameFolder.Find();
+				if (!GameFolder.IsGame(gameDir))
+				{
+					throw new PlainException("HalfGrip.exe was not found in '" + gameDir + "'. Use --game-dir <folder with HalfGrip.exe>.");
+				}
+				gameDir = Path.GetFullPath(gameDir);
+				string[] needing = Setup.DependentsOf(gameDir, folder);
+				if (needing.Length > 0)
+				{
+					Log.Write("Still installed and needing " + folder + ": " + string.Join(", ", needing));
+				}
+				Log.Write(Setup.UninstallMod(gameDir, folder, withData));
+				return 0;
+			}
+			catch (Exception e)
+			{
+				Log.Write(e is PlainException ? e.Message : e.ToString());
+				return 1;
+			}
 		}
 
 		private static int Headless(string gameDir, List<string> links, bool install)
