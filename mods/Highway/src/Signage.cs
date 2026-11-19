@@ -54,6 +54,7 @@ namespace HalfGripHighway
 			float len = total / n;
 			railChunk++;
 			railInChunk = 0;
+			int previous = -1;
 			for (int k = 0; k < n; k++)
 			{
 				Geo.PointAt(run, cum, (k + 0.5f) * len, out Vector3 pos, out Vector3 right);
@@ -63,7 +64,14 @@ namespace HalfGripHighway
 					railInChunk = 0;
 				}
 				railInChunk++;
-				Rails.Add(new RailPiece { Pos = pos, Along = new Vector3(-right.z, 0f, right.x), Out = right * side, Len = len, Chunk = railChunk });
+				if (previous >= 0)
+				{
+					RailPiece before = Rails[previous];
+					before.Next = Rails.Count;
+					Rails[previous] = before;
+				}
+				Rails.Add(new RailPiece { Pos = pos, Along = new Vector3(-right.z, 0f, right.x), Out = right * side, Len = len, Chunk = railChunk, Prev = previous, Next = -1 });
+				previous = Rails.Count - 1;
 			}
 		}
 

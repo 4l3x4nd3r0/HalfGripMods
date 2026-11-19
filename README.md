@@ -119,12 +119,12 @@ How it works:
 - **Track line:** the control points of the game's `PathManager` are replaced by the highway's loop; the racing line the AI follows is baked from it. Laps count when the nearest-sample index wraps.
 - **Stacked roads:** the game finds "where on the track" a car is with a 3D nearest-sample lookup, which confuses two roads on top of each other. The mod replaces `PathManager.GetClosestPointIndex` with its own tree that weighs height four times.
 - **Dirt shortcuts:** an index jump over a quarter of the samples would count as a backwards lap or "Wrong way", so the lap counter and the wrong-way check are patched to use the direction of the dirt road when the car is on one.
-- **Breakables:** guardrail, signs, drums and cones are script-driven pieces, not rigid bodies (rigid bodies cost too many frames). A touched piece breaks. Each guardrail piece takes 30% of your speed, a sign or drum 3%, cones nothing.
+- **Breakables:** guardrail, signs, drums and cones are script-driven pieces, not rigid bodies (rigid bodies cost too many frames). Signs, drums and cones break when touched: a sign or drum takes 3% of your speed, cones nothing. The guardrail goes by how fast you hit it, measured as the part of your speed that points at the rail, in the number the dash shows: up to 90 it holds like a wall, you slide along it and take no damage; from 90 to 120 it holds but bends and you lose a little speed; from 120 it breaks where you touch it, takes 30% of your speed for each piece, and the two pieces on each side are bent.
 - **Resets:** the game's reset ray is shortened so a reset under the bridge finds the lower deck.
 
 Known: a few gaps of 1 to 3 m where a highway wall meets a ramp wall. A saved run that includes Highway needs the mod loaded to be restored.
 
-Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time objectives), `MedianGaps`, `MedianGapLength`, `SpeedLossPerPiece`, `SignSpeedLoss`, `Grip` and `Drag` (dirt roads), `ShowPath`.
+Settings: `TestMode` (every race on Highway), `BenchmarkFactor` (scales the time objectives), `MedianGaps`, `MedianGapLength`, `SpeedLossPerPiece`, `SignSpeedLoss`, `ContainSpeed`, `BreakSpeed` and `BendSpeedLoss` (guardrail), `Grip` and `Drag` (dirt roads), `ShowPath`, `LogRailHits`.
 
 ### TempleOfDrift
 A race map, added to `RunConfig.maps` as track index 21. Like Highway it is built from code inside the Stadium scene when a Temple of Drift race loads; Stadium hosts it and its own track is not used.
@@ -141,7 +141,7 @@ How it works:
 
 Known: a saved run that includes Temple of Drift needs the mod loaded to be restored.
 
-Settings: `TestMode` (every race on Temple of Drift), `BenchmarkFactor` (scales the time objectives), `Grip` and `Drag` under `Dirt`, `Gravel`, `Cave` (`ShortWayGrip`, `ShortWayDrag`, `Lights`, `GuideWalls`, `ForkLanterns`), `TarmacGrip` under `Touge` and `Hairpins`, `PaintGrip`, `FellSpeed` and `SpeedKept` under `Bamboo`, `EntranceBreakSpeed`, `ExitBreakSpeed` and `SpeedKept` under `Timber`, `SpeedLossPerPiece` (guardrail), `Trees`, `Enabled` (music), `ShowPath`.
+Settings: `TestMode` (every race on Temple of Drift), `BenchmarkFactor` (scales the time objectives), `Grip` and `Drag` under `Dirt`, `Gravel`, `Cave` (`ShortWayGrip`, `ShortWayDrag`, `Lights`, `GuideWalls`, `ForkLanterns`), `TarmacGrip` under `Touge` and `Hairpins`, `PaintGrip`, `FellSpeed` and `SpeedKept` under `Bamboo`, `EntranceBreakSpeed`, `ExitBreakSpeed` and `SpeedKept` under `Timber`, `SpeedLossPerPiece`, `ContainSpeed`, `BreakSpeed` and `BendSpeedLoss` (guardrail, same rules as Highway), `Trees`, `Enabled` (music), `ShowPath`.
 
 ### Multiplayer
 Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo").

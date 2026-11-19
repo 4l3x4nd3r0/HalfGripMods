@@ -31,6 +31,10 @@ namespace TempleOfDrift
 		internal static ModSetting<float> ShortWayGrip;
 		internal static ModSetting<float> ShortWayDrag;
 		internal static ModSetting<float> SpeedLossPerPiece;
+		internal static ModSetting<float> ContainSpeed;
+		internal static ModSetting<float> BreakSpeed;
+		internal static ModSetting<float> BendSpeedLoss;
+		internal static ModSetting<bool> LogRailHits;
 		internal static ModSetting<int> CaveLights;
 		internal static ModSetting<int> TreeCount;
 		internal static ModSetting<bool> PlayMusic;
@@ -58,6 +62,10 @@ namespace TempleOfDrift
 			ShortWayGrip = ctx.Config.Bind("Cave", "ShortWayGrip", 0.80f, "Grip on the short, steep way through the cave (broken rock). Lower makes the shortcut cost more.");
 			ShortWayDrag = ctx.Config.Bind("Cave", "ShortWayDrag", 1.9f, "Rolling resistance on the short way. Higher makes the shortcut cost more.");
 			SpeedLossPerPiece = ctx.Config.Bind("Guardrail", "SpeedLossPerPiece", 0.30f, "Share of a car's speed that each piece of guardrail it touches takes (0 to 1), as on Highway.");
+			ContainSpeed = ctx.Config.Bind("Guardrail", "ContainSpeed", 90f, "Speed into the guardrail, as the dash shows it (the part of the car's speed that points at the rail), up to which the rail holds like a wall: the car slides along it, loses nothing and takes no crash damage.");
+			BreakSpeed = ctx.Config.Bind("Guardrail", "BreakSpeed", 120f, "Speed into the guardrail, as the dash shows it, from which the rail breaks. Between ContainSpeed and this the rail holds but bends and the car loses some speed. A break takes the touched pieces out and bends the two on each side.");
+			BendSpeedLoss = ctx.Config.Bind("Guardrail", "BendSpeedLoss", 0.20f, "Share of the car's speed lost in a hit that only bends the rail, at the top of the bending band (0 to 1). It grows from nothing at ContainSpeed.");
+			LogRailHits = ctx.Config.Bind("Debug", "LogRailHits", false, "Write a line to the log for every guardrail hit: the speed into the rail, what it did and the speed before and after.");
 			CaveLights = ctx.Config.Bind("Cave", "Lights", 14, "Faint lights along the cave (glowing fungus and a shaft of daylight). Lower is cheaper. 0 leaves the cave pitch dark.");
 			TreeCount = ctx.Config.Bind("Scenery", "Trees", 800, "Japanese trees round the roads (cedar, cherry, maple, pine, bamboo). Lower is cheaper.");
 			PlayMusic = ctx.Config.Bind("Music", "Enabled", true, "Play the map's own track instead of one of the game's. Needs audio\\temple_of_drift.wav in the mod folder.");

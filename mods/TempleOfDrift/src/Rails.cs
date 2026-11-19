@@ -11,6 +11,8 @@ namespace TempleOfDrift
 		public Vector3 Out;     // unit vector away from the road
 		public float Len;
 		public int Chunk;
+		public int Prev;        // index of the piece before this one in the same run, or -1
+		public int Next;        // index of the piece after it, or -1
 	}
 
 	/// <summary>The loose boxes a broken guardrail turns into. Capped, and each one vanishes after a few seconds.</summary>
@@ -86,6 +88,10 @@ namespace TempleOfDrift
 
 		private readonly List<RailPiece> pieces = new List<RailPiece>();
 		private bool[] broken;
+		private float[] bend;                // 0 straight .. 1 badly bent
+		private int[] stamp;                 // the step a piece was last collected in, so a piece in two grid cells is handled once
+		private int stampNow;
+		private readonly List<int> touched = new List<int>();
 		private readonly List<Chunk> chunks = new List<Chunk>();
 		private readonly List<Chunk> dirty = new List<Chunk>();
 		private readonly Dictionary<long, List<int>> railGrid = new Dictionary<long, List<int>>();
@@ -117,6 +123,8 @@ namespace TempleOfDrift
 
 			pieces.AddRange(rails);
 			broken = new bool[pieces.Count];
+			bend = new float[pieces.Count];
+			stamp = new int[pieces.Count];
 			for (int i = 0; i < pieces.Count; i++)
 			{
 				int c = pieces[i].Chunk;
@@ -183,6 +191,11 @@ namespace TempleOfDrift
 				RailPiece p = pieces[i];
 				Quaternion rot = Facing(p);
 				float beam = p.Len - 0.06f;
+				if (bend[i] > 0.02f)
+				{
+					BentPiece(steel, posts, p, rot, beam, bend[i]);
+					continue;
+				}
 				steel.Box(p.Pos + rot * new Vector3(0f, 0.85f, 0.1f), new Vector3(beam, 0.5f, 0.08f), rot, 4f);
 				steel.Box(p.Pos + rot * new Vector3(0f, 1.6f, 0.1f), new Vector3(beam, 0.5f, 0.08f), rot, 4f);
 				for (int k = -1; k <= 1; k++)
@@ -193,6 +206,72 @@ namespace TempleOfDrift
 			Replace(chunk.Steel, steel);
 			Replace(chunk.Posts, posts);
 			chunk.Dirty = false;
+		}
+
+		/// <summary>
+		/// A damaged piece: each beam is two halves that meet in a point pushed away from the road (a bow), the middle post leans out with it
+		/// and the end posts lean a little. The ends stay where they were, so the pieces either side still meet it.
+		/// </summary>
+		private static void BentPiece(Batch steel, Batch posts, RailPiece p, Quaternion rot, float beam, float b)
+		{
+			float bow = b * 1.1f;
+			BentBeam(steel, p, 0.85f, beam, bow);
+			BentBeam(steel, p, 1.6f, beam, bow);
+			Vector3 axis = Vector3.Cross(Vector3.up, p.Out);
+			for (int k = -1; k <= 1; k++)
+			{
+				Vector3 foot = p.Pos + p.Along * (k * (p.Len * 0.5f - 0.5f));
+				if (k == 0)
+				{
+					foot += p.Out * bow;
+				}
+				Quaternion lean = Quaternion.AngleAxis(b * (k == 0 ? 20f : 8f), axis);
+				Vector3 centre = foot + lean * (rot * new Vector3(0f, -0.45f, 0f));
+				posts.Box(centre, new Vector3(0.18f, 5.1f, 0.18f), lean * rot, 4f);
+			}
+		}
+
+		private static void BentBeam(Batch steel, RailPiece p, float height, float beam, float bow)
+		{
+			Vector3 lift = Vector3.up * height;
+			Vector3 e0 = p.Pos + lift - p.Along * (beam * 0.5f);
+			Vector3 e1 = p.Pos + lift + p.Along * (beam * 0.5f);
+			Vector3 mid = p.Pos + lift + p.Out * bow;
+			BeamBetween(steel, e0, mid);
+			BeamBetween(steel, mid, e1);
+		}
+
+		private static void BeamBetween(Batch steel, Vector3 a, Vector3 b)
+		{
+			Vector3 d = b - a;
+			float len = d.magnitude;
+			if (len < 0.01f)
+			{
+				return;
+			}
+			Quaternion r = Quaternion.LookRotation(Vector3.Cross(d / len, Vector3.up), Vector3.up);
+			steel.Box((a + b) * 0.5f, new Vector3(len + 0.04f, 0.5f, 0.08f), r, 4f);
+		}
+
+		private void MarkDirty(int piece)
+		{
+			Chunk chunk = chunks[pieces[piece].Chunk];
+			if (!chunk.Dirty)
+			{
+				chunk.Dirty = true;
+				dirty.Add(chunk);
+			}
+		}
+
+		private void AddBend(int piece, float amount, bool atLeast)
+		{
+			float now = bend[piece];
+			float next = atLeast ? Mathf.Max(now, amount) : Mathf.Min(1f, now + amount);
+			if (next > now + 0.001f)
+			{
+				bend[piece] = next;
+				MarkDirty(piece);
+			}
 		}
 
 		private static void Replace(MeshFilter filter, Batch batch)
@@ -271,6 +350,8 @@ namespace TempleOfDrift
 
 			int hits = 0;
 			Vector3 velocity = body.linearVelocity;
+			stampNow++;
+			touched.Clear();
 			for (int cx = x0; cx <= x1; cx++)
 			{
 				for (int cz = z0; cz <= z1; cz++)
@@ -283,29 +364,155 @@ namespace TempleOfDrift
 					for (int n = 0; n < rails.Count; n++)
 					{
 						int i = rails[n];
-						if (broken[i] || !SegmentTouchesCar(pieces[i], centre, forward, right))
+						if (broken[i] || stamp[i] == stampNow || !SegmentTouchesCar(pieces[i], centre, forward, right))
 						{
 							continue;
 						}
-						broken[i] = true;
-						Chunk chunk = chunks[pieces[i].Chunk];
-						if (!chunk.Dirty)
-						{
-							chunk.Dirty = true;
-							dirty.Add(chunk);
-						}
-						Shatter(pieces[i], velocity);
-						hits++;
+						stamp[i] = stampNow;
+						touched.Add(i);
 					}
 				}
 			}
-			// Every piece takes the same share of the car's speed, so three hits are heavy and five or six all but stop it; pieces broken
-			// in the same step count in full for the first two and a third as much after that (a broadside crossing is one barrier).
-			if (hits > 0)
+			if (touched.Count == 0)
+			{
+				return;
+			}
+			Vector3 v = velocity;
+			hits = ResolveRails(car, body, centre, forward, right, ref v);
+			// A rail that gave way takes the same share of the car's speed for every piece, so three hits are heavy and five or six all but
+			// stop it; pieces broken in the same step count in full for the first two and a third as much after that (a broadside crossing
+			// is one barrier).
+			if (hits > 0 || v != velocity)
 			{
 				float keep = 1f - Mathf.Clamp01(Mod.SpeedLossPerPiece.Value);
 				float counted = hits <= 2 ? hits : 2f + 0.35f * (hits - 2);
-				body.linearVelocity = velocity * Mathf.Pow(keep, counted);
+				body.linearVelocity = v * Mathf.Pow(keep, counted);
+			}
+		}
+
+		/// <summary>The number on the dash is the car's speed in game units a second times this (<c>SpeedDashboard.SpeedToDisplay</c>).</summary>
+		private const float Dash = 1.8f;
+
+		/// <summary>The direction from the car to the rail piece, across the road: the piece's outward normal, turned round for a car that is already outside it.</summary>
+		private static Vector3 Toward(RailPiece p, Vector3 centre)
+		{
+			return Vector3.Dot(centre - p.Pos, p.Out) > 0f ? -p.Out : p.Out;
+		}
+
+		/// <summary>
+		/// What the pieces the car touches do, by how fast it is going into them (the dash's number, along the rail's normal):
+		/// under ContainSpeed the rail holds like a wall and the car slides along it, with no crash damage (nothing here is a collider);
+		/// up to BreakSpeed the same, and the touched pieces bend and the car loses some speed; from BreakSpeed the touched pieces break
+		/// and the two on each side of the gap are bent. Returns how many pieces broke.
+		/// </summary>
+		private int ResolveRails(CarControllerNew car, Rigidbody body, Vector3 centre, Vector3 forward, Vector3 right, ref Vector3 v)
+		{
+			float contain = Mathf.Max(1f, Mod.ContainSpeed.Value);
+			float limit = Mathf.Max(contain + 1f, Mod.BreakSpeed.Value);
+			Vector3 v0 = v;
+			float impact = 0f;
+			for (int n = 0; n < touched.Count; n++)
+			{
+				impact = Mathf.Max(impact, Vector3.Dot(v0, Toward(pieces[touched[n]], centre)) * Dash);
+			}
+
+			if (impact >= limit)
+			{
+				for (int n = 0; n < touched.Count; n++)
+				{
+					int i = touched[n];
+					broken[i] = true;
+					MarkDirty(i);
+					Shatter(pieces[i], v0);
+				}
+				for (int n = 0; n < touched.Count; n++)
+				{
+					BendAround(touched[n]);
+				}
+				LogHit(car, impact, "break", touched.Count, v0, v0);
+				return touched.Count;
+			}
+
+			Vector3 shift = Vector3.zero;
+			for (int n = 0; n < touched.Count; n++)
+			{
+				RailPiece p = pieces[touched[n]];
+				Vector3 toward = Toward(p, centre);
+				float into = Vector3.Dot(v, toward);
+				if (into > 0f)
+				{
+					v -= toward * into;
+				}
+				float pen = Penetration(p, centre + shift, forward, right, toward);
+				if (pen > 0f)
+				{
+					shift -= toward * (pen + 0.05f);
+				}
+			}
+			if (impact > contain)
+			{
+				float t = Mathf.Clamp01((impact - contain) / (limit - contain));
+				for (int n = 0; n < touched.Count; n++)
+				{
+					AddBend(touched[n], 0.25f + 0.5f * t, false);
+				}
+				v *= 1f - Mathf.Clamp01(Mod.BendSpeedLoss.Value) * t;
+			}
+			if (shift.sqrMagnitude > 1e-8f)
+			{
+				body.position = body.position + Vector3.ClampMagnitude(shift, 2.5f);
+			}
+			if (impact > 5f)
+			{
+				LogHit(car, impact, impact > contain ? "bend" : "hold", touched.Count, v0, v);
+			}
+			return 0;
+		}
+
+		/// <summary>How far the car's footprint reaches past the rail line, measured from its corners that are along the piece.</summary>
+		private float Penetration(RailPiece p, Vector3 centre, Vector3 forward, Vector3 right, Vector3 toward)
+		{
+			float best = 0f;
+			float reach = p.Len * 0.5f + 0.3f;
+			for (int sx = -1; sx <= 1; sx += 2)
+			{
+				for (int sz = -1; sz <= 1; sz += 2)
+				{
+					Vector3 d = centre + right * (sx * carHalfWidth) + forward * (sz * carHalfLength) - p.Pos;
+					if (Mathf.Abs(Vector3.Dot(d, p.Along)) <= reach)
+					{
+						best = Mathf.Max(best, Vector3.Dot(d, toward));
+					}
+				}
+			}
+			return best;
+		}
+
+		/// <summary>The two pieces either side of a gap are bent, the nearer one more.</summary>
+		private void BendAround(int piece)
+		{
+			for (int dir = 0; dir < 2; dir++)
+			{
+				int n = dir == 0 ? pieces[piece].Prev : pieces[piece].Next;
+				int depth = 0;
+				while (n >= 0 && depth < 2)
+				{
+					if (!broken[n])
+					{
+						AddBend(n, depth == 0 ? 0.8f : 0.45f, true);
+						depth++;
+					}
+					n = dir == 0 ? pieces[n].Prev : pieces[n].Next;
+				}
+			}
+		}
+
+		private static void LogHit(CarControllerNew car, float impact, string what, int count, Vector3 before, Vector3 after)
+		{
+			if (Mod.LogRailHits != null && Mod.LogRailHits.Value)
+			{
+				Mod.Log.LogInfo("Rail " + what + ": " + car.name + " into the rail at " + impact.ToString("0") + " on the dash, " + count + " piece(s), speed "
+					+ (before.magnitude * Dash).ToString("0") + " -> " + (after.magnitude * Dash).ToString("0"));
 			}
 		}
 

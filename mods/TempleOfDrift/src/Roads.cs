@@ -478,6 +478,7 @@ namespace TempleOfDrift
 			railChunk++;
 			railInChunk = 0;
 			int seg = 0;
+			int previous = -1;
 			for (int k = 0; k < count; k++)
 			{
 				float s = (k + 0.5f) * len;
@@ -502,7 +503,14 @@ namespace TempleOfDrift
 					railInChunk = 0;
 				}
 				railInChunk++;
-				Rails.Add(new RailPiece { Pos = pos, Along = along, Out = right * side, Len = len, Chunk = railChunk });
+				if (previous >= 0)
+				{
+					RailPiece before = Rails[previous];
+					before.Next = Rails.Count;
+					Rails[previous] = before;
+				}
+				Rails.Add(new RailPiece { Pos = pos, Along = along, Out = right * side, Len = len, Chunk = railChunk, Prev = previous, Next = -1 });
+				previous = Rails.Count - 1;
 			}
 		}
 

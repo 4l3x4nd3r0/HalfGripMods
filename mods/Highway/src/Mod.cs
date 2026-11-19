@@ -18,6 +18,10 @@ namespace HalfGripHighway
 		internal static ModSetting<bool> ShowPath;
 		internal static ModSetting<float> SpeedLossPerPiece;
 		internal static ModSetting<float> SignSpeedLoss;
+		internal static ModSetting<float> ContainSpeed;
+		internal static ModSetting<float> BreakSpeed;
+		internal static ModSetting<float> BendSpeedLoss;
+		internal static ModSetting<bool> LogRailHits;
 		internal static ModSetting<float> DirtGrip;
 		internal static ModSetting<float> DirtDrag;
 
@@ -35,6 +39,10 @@ namespace HalfGripHighway
 			MedianGapLength = ctx.Config.Bind("Layout", "MedianGapLength", 120f, "Length of a median gap along the road, in metres. 120 m lets a car cross the 10 m median at about 8 degrees at 120 on the dash. Five breakable signs stand in each gap.");
 			SpeedLossPerPiece = ctx.Config.Bind("Guardrail", "SpeedLossPerPiece", 0.30f, "Share of a car's speed that each piece of guardrail (or sign) it actually touches takes (0 to 1). 0.30 leaves 34% of the speed after three pieces and about 12% after six.");
 			SignSpeedLoss = ctx.Config.Bind("Guardrail", "SignSpeedLoss", 0.03f, "Share of a car's speed that each sign or drum it hits takes (cones take none). 0.03 is a light bump; the guardrail's SpeedLossPerPiece is the heavy one.");
+			ContainSpeed = ctx.Config.Bind("Guardrail", "ContainSpeed", 90f, "Speed into the guardrail, as the dash shows it (the part of the car's speed that points at the rail), up to which the rail holds like a wall: the car slides along it, loses nothing and takes no crash damage.");
+			BreakSpeed = ctx.Config.Bind("Guardrail", "BreakSpeed", 120f, "Speed into the guardrail, as the dash shows it, from which the rail breaks. Between ContainSpeed and this the rail holds but bends and the car loses some speed. A break takes the touched pieces out and bends the two on each side.");
+			BendSpeedLoss = ctx.Config.Bind("Guardrail", "BendSpeedLoss", 0.20f, "Share of the car's speed lost in a hit that only bends the rail, at the top of the bending band (0 to 1). It grows from nothing at ContainSpeed.");
+			LogRailHits = ctx.Config.Bind("Debug", "LogRailHits", false, "Write a line to the log for every guardrail hit: the speed into the rail, what it did and the speed before and after.");
 			DirtGrip = ctx.Config.Bind("Dirt", "Grip", 0.75f, "Grip of the two dirt shortcuts, 1 being tarmac. Tyres that cope with loose surfaces lose less.");
 			DirtDrag = ctx.Config.Bind("Dirt", "Drag", 1.8f, "Rolling resistance of the dirt shortcuts, 1 being tarmac.");
 			ShowPath = ctx.Config.Bind("Debug", "ShowPath", false, "Draw the sampled track line the AI and the lap counter follow.");
