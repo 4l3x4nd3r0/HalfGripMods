@@ -3,20 +3,7 @@ using UnityEngine;
 
 namespace HalfGripHighway
 {
-	/// <summary>Highway has its own track index; the scene to load is Stadium's.</summary>
-	[HarmonyPatch(typeof(MenuManager), "TrackIndex")]
-	internal static class TrackIndexPatch
-	{
-		private static bool Prefix(ref int __result)
-		{
-			if (Mod.Map != null && RunState.Active && RunState.HasSelection && RunState.Selected.map == Mod.Map)
-			{
-				__result = MapEntry.HostTrack;
-				return false;
-			}
-			return true;
-		}
-	}
+	// Highway's own track index, and the scene to load for it (Stadium's), are the loader's job now (ctx.Maps).
 
 	/// <summary>TestMode: whatever node the player picked, the race is on Highway.</summary>
 	[HarmonyPatch(typeof(RunState), nameof(RunState.BeginRace))]

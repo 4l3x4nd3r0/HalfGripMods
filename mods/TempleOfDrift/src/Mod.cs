@@ -1,4 +1,5 @@
 using HalfGripTools;
+using UnityEngine;
 
 namespace TempleOfDrift
 {
@@ -41,7 +42,10 @@ namespace TempleOfDrift
 		internal static ModSetting<bool> ShowPath;
 
 		/// <summary>The map entry the mod adds to the run config, once it exists.</summary>
-		internal static MapDefinition Map;
+		internal static MapInfo Info;
+
+		/// <summary>The map's entry in the run config, once the game has one.</summary>
+		internal static MapDefinition Map { get { return Info != null ? Info.Definition : null; } }
 
 		public override void Load(ModContext ctx)
 		{
@@ -102,15 +106,63 @@ namespace TempleOfDrift
 				Log.LogError("Temple of Drift: its data files are missing or unreadable, so the map is not added.");
 				return;
 			}
-			MapEntry.Ensure();
+			// The loader makes the map's entry in the run config, gives it its track id (21, as always) and sends the game to the Stadium scene for it.
+			Info = new MapInfo
+			{
+				Id = "templeofdrift",
+				DisplayName = "Temple of Drift",
+				SaveName = "TempleOfDrift",   // the name a saved run stores: never change it
+				PreferredTrackId = 21,
+				LapLength = Data.Lap,
+				BenchmarkFactor = BenchmarkFactor.Value,
+				Adjust = map =>
+				{
+					map.excludeFromLast = false;
+					map.notBesideSameTrack = false;
+					map.altMusicTrack = null;
+					map.altMusicChance = 0f;
+
+					// Daylight forest weather with the rain switched off and a light mist; the Stadium's own is ash.
+					RunConfig config = RunConfig.Instance;
+					MapDefinition forest = config != null ? (config.FindMap("ForestRainyDay") ?? config.FindMap("ForestRed")) : null;
+					if (forest != null && forest.weather != null)
+					{
+						WeatherProfile weather = Object.Instantiate(forest.weather);
+						weather.hideFlags = HideFlags.HideAndDontSave;
+						weather.rain = false;
+						weather.snow = false;
+						weather.ash = false;
+						weather.headlightsActive = false;
+						weather.fogActive = true;
+						weather.fogColor = new Color(0.70f, 0.78f, 0.78f);
+						weather.fogStart = 120f;
+						weather.fogEnd = 2600f;
+						weather.gripExponent = 1f;
+						weather.gripMultiplier = 1f;
+						map.weather = weather;
+					}
+					Sprite icon = ctx.Sprites.LoadSprite("templeofdrift_icon.png", map.icon);
+					if (icon != null)
+					{
+						map.icon = icon;
+					}
+					if (PlayMusic.Value)
+					{
+						AudioClip clip = Music.Load(ctx.Folder);
+						if (clip != null)
+						{
+							map.musicTrack = clip;
+						}
+					}
+				}
+			};
+			ctx.Maps.Register(Info);
 			TreeSource.Capture();
 			ctx.OnSceneLoaded(scene =>
 			{
-				MapEntry.Ensure();
 				TreeSource.Capture();
 				SceneBuilder.OnSceneLoaded(scene);
 			});
-			ctx.OnUnload(MapEntry.Remove);
 			ctx.PatchAll();
 		}
 

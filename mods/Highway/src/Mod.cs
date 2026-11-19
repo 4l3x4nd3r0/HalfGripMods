@@ -1,4 +1,5 @@
 ﻿using HalfGripTools;
+using UnityEngine;
 
 namespace HalfGripHighway
 {
@@ -25,8 +26,11 @@ namespace HalfGripHighway
 		internal static ModSetting<float> DirtGrip;
 		internal static ModSetting<float> DirtDrag;
 
-		/// <summary>The map entry the mod adds to the run config, once it exists.</summary>
-		internal static MapDefinition Map;
+		/// <summary>The map as registered with the loader (<c>ctx.Maps</c>).</summary>
+		internal static MapInfo Info;
+
+		/// <summary>The map's entry in the run config, once the game has one.</summary>
+		internal static MapDefinition Map { get { return Info != null ? Info.Definition : null; } }
 
 		public override void Load(ModContext ctx)
 		{
@@ -47,15 +51,30 @@ namespace HalfGripHighway
 			DirtDrag = ctx.Config.Bind("Dirt", "Drag", 1.8f, "Rolling resistance of the dirt shortcuts, 1 being tarmac.");
 			ShowPath = ctx.Config.Bind("Debug", "ShowPath", false, "Draw the sampled track line the AI and the lap counter follow.");
 
-			MapEntry.Ensure();
+			// The loader makes the map's entry in the run config, gives it its track id (20, as always) and sends the game to the Stadium scene for it.
+			Info = new MapInfo
+			{
+				Id = "highway",
+				DisplayName = "Highway",
+				PreferredTrackId = 20,
+				LapLength = Route.Build().Length,
+				BenchmarkFactor = BenchmarkFactor.Value,
+				Adjust = map =>
+				{
+					Sprite icon = ctx.Sprites.LoadSprite("highway_icon.png", map.icon);
+					if (icon != null)
+					{
+						map.icon = icon;
+					}
+				}
+			};
+			ctx.Maps.Register(Info);
 			TreeSource.Capture();
 			ctx.OnSceneLoaded(scene =>
 			{
-				MapEntry.Ensure();
 				TreeSource.Capture();
 				HighwayScene.OnSceneLoaded(scene);
 			});
-			ctx.OnUnload(MapEntry.Remove);
 			ctx.PatchAll();
 		}
 

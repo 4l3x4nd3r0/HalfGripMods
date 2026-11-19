@@ -263,7 +263,7 @@ namespace Multiplayer
 			yield return RigScenarios.WaitForMenu();
 			SaveSandbox.Enter();
 			Garage.EnsureRun();
-			foreach (MapDefinition map in Garage.Maps().GroupBy(m => m.trackIndex).Select(g => g.First()).ToList())
+			foreach (MapDefinition map in Garage.Maps().GroupBy(m => m.trackIndex >= 5 ? 1000 + m.trackIndex : m.trackIndex).Select(g => g.First()).ToList())
 			{
 				if (!RunState.HasSelection)
 				{
@@ -274,7 +274,7 @@ namespace Multiplayer
 				node.variant = TrackVariant.Normal;
 				node.unknownMap = false;
 				RunState.BeginRace();
-				SceneLoader.Instance.LoadTrackScene(map.trackIndex);
+				SceneLoader.Instance.LoadTrackScene(map.trackIndex >= 5 ? 0 : map.trackIndex);
 				float until = Time.realtimeSinceStartup + 40f;
 				while (UnityEngine.Object.FindFirstObjectByType<TrackManager>() == null && Time.realtimeSinceStartup < until)
 				{
