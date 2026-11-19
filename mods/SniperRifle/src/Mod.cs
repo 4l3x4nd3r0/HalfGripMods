@@ -1,5 +1,3 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 using UnityEngine;
 
@@ -7,35 +5,35 @@ namespace HalfGripSniper
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<int> Rounds;
+		internal static ModSetting<int> Rounds;
 
-		internal static ConfigEntry<float> BaseDamage;
+		internal static ModSetting<float> BaseDamage;
 
-		internal static ConfigEntry<float> HalfChargeDamage;
+		internal static ModSetting<float> HalfChargeDamage;
 
-		internal static ConfigEntry<float> FullChargeDamage;
+		internal static ModSetting<float> FullChargeDamage;
 
-		internal static ConfigEntry<float> ChargeDelay;
+		internal static ModSetting<float> ChargeDelay;
 
-		internal static ConfigEntry<float> ChargeTime;
+		internal static ModSetting<float> ChargeTime;
 
-		internal static ConfigEntry<float> Magnification;
+		internal static ModSetting<float> Magnification;
 
-		internal static ConfigEntry<float> ZoomSpeed;
+		internal static ModSetting<float> ZoomSpeed;
 
-		internal static ConfigEntry<bool> LaserDot;
+		internal static ModSetting<bool> LaserDot;
 
-		internal static ConfigEntry<bool> ShowScope;
+		internal static ModSetting<bool> ShowScope;
 
-		internal static ConfigEntry<bool> LowerAfterShot;
+		internal static ModSetting<bool> LowerAfterShot;
 
-		internal static ConfigEntry<bool> DumpInfo;
+		internal static ModSetting<bool> DumpInfo;
 
-		internal static ConfigEntry<int> ConfigVersion;
+		internal static ModSetting<int> ConfigVersion;
 
 		public override void Load(ModContext ctx)
 		{
@@ -60,9 +58,9 @@ namespace HalfGripSniper
 			ShowScope = ctx.Config.Bind("Sniper Rifle", "ScopeOverlay", true, "Black out everything outside a round lens while the rifle is raised and draw a reticle (with a charge bar) at the aim point.");
 			LaserDot = ctx.Config.Bind("Sniper Rifle", "LaserDot", true, "Show a red dot where the rifle is aimed, brighter as the charge builds. It does nothing but look the part.");
 			LowerAfterShot = ctx.Config.Bind("Sniper Rifle", "LowerAfterShot", true, "Lower the rifle after a shot so you can work the bolt straight away.");
-			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write extra detail about the rifle's parts to the BepInEx log. Useful when tuning.");
+			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write extra detail about the rifle's parts to the log. Useful when tuning.");
 
-			// BepInEx keeps a value already in the config file when a default changes, so after a retune the old numbers would linger.
+			// The config file keeps a value already in it when a default changes, so after a retune the old numbers would linger.
 			// Bumping this brings the tuned entries back to their new defaults once, and leaves anything changed afterwards alone.
 			ConfigVersion = ctx.Config.Bind("Debug", "ConfigVersion", 0, "Used by the plugin to reset retuned defaults after an update. Leave it.");
 			if (ConfigVersion.Value < 5)

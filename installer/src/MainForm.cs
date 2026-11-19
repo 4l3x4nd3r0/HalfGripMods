@@ -634,7 +634,7 @@ namespace HalfGripModsInstaller
 		}
 
 		private const string HowTo =
-			"1.  Close the game, then press INSTALL ALL. It puts in BepInEx, HalfGripTools and every official mod.\n" +
+			"1.  Close the game, then press INSTALL ALL. It puts in HalfGripTools and every official mod. No BepInEx is needed.\n" +
 			"2.  Click a card to read about a mod. Its own button installs just that one.\n" +
 			"3.  + ADD takes the GitHub link of someone else's mods.\n" +
 			"4.  SUGGESTED lists mods the author recommends. Nothing is installed until you press its button.\n" +
@@ -651,7 +651,7 @@ namespace HalfGripModsInstaller
 		{
 			string version = typeof(MainForm).Assembly.GetName().Version.ToString(3);
 			OpenInfo("ABOUT",
-				"Half Grip mods installer " + version + ", by 4l3x4nd3r. It puts BepInEx, HalfGripTools and the mods into Half Grip Demo.\n\n" +
+				"Half Grip mods installer " + version + ", by 4l3x4nd3r. It puts HalfGripTools and the mods into Half Grip Demo (and BepInEx only if other BepInEx plugins need it there).\n\n" +
 				"Mods from other people run on your PC like any program, so add links only from people you trust. Every mod is plain text you can read on its GitHub page, and a mod that carries a program file is refused. Your saves are never touched.\n\n" +
 				"It keeps its settings and a copy of what GitHub said in:\n" + Cache.Root + "\n\n" +
 				"Font: VT323, by the VT323 Project Authors (SIL Open Font License).");

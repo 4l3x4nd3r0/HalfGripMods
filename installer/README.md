@@ -1,6 +1,6 @@
 # Half Grip mods installer
 
-One program that puts BepInEx, HalfGripTools and the mods into Half Grip Demo, and can also add mods from other people's GitHub pages. Everything it does is in plain C# in this folder.
+One program that puts HalfGripTools and the mods into Half Grip Demo, and can also add mods from other people's GitHub pages. Everything it does is in plain C# in this folder.
 
 ## Using it
 
@@ -22,8 +22,8 @@ More, if you want it:
 
 ## What it will and will not do
 
-- Downloads only from `github.com`: BepInEx (the version in `config.json`, checked against its SHA-256), the newest HalfGripTools (checked against its `SHA256SUMS.txt`), the mods.
-- Writes in the game folder only: `BepInEx\`, `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, plus `BepInEx\HalfGripMods\installer-sources.txt` (the links you added and where each mod came from). Its own files are in `%USERPROFILE%\AppData\LocalLow\Half Games\HalfGripMods`: `config.json`, and a `cache` of GitHub's answers. Nothing about you is kept there.
+- Downloads only from `github.com`: the newest HalfGripTools (checked against its `SHA256SUMS.txt`), the mods, and BepInEx only where HalfGripTools has to run inside it (the version in `config.json`, checked against its SHA-256).
+- Writes in the game folder only: `Mods\` (the mods, and `Mods\installer-sources.txt`: the links you added and where each mod came from), `HalfGripTools\`, `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, and `BepInEx\` where HalfGripTools runs inside it. It moves mod folders an older installer put in `BepInEx\HalfGripMods` into `Mods\`. Removing everything also removes HalfGripTools' data folder (`LocalLow\Half Games\HalfGrip\Mods`: settings, cache, log). Its own files are in `%USERPROFILE%\AppData\LocalLow\Half Games\HalfGripMods`: `config.json`, and a `cache` of GitHub's answers. Nothing about you is kept there.
 - Refuses any mod that contains a program file (`.dll .exe .so .dylib .bat .cmd .ps1 .vbs .msi .scr .com`): a mod here is readable source and pictures only.
 - No registry writes (it only reads Steam's path), no saves, no other mods. A log of what it did is `%TEMP%\HalfGrip-Mods-Installer.log`.
 
@@ -63,6 +63,17 @@ More, if you want it:
 
 Whoever can push to this repository decides what players are offered, so keep two-factor on the account. The installer cannot judge what a mod's code does.
 
+### BepInEx or not
+
+HalfGripTools 2.0 starts by itself through Doorstop (`winhttp.dll`) and needs no BepInEx. The installer picks the way per game (`Setup.ChooseHost`):
+
+- **No BepInEx, or BepInEx with no other plugin in it**: the standalone zip (`HalfGripToolsStandalone-v*.zip`) is unzipped into the game folder. If BepInEx was only there for HalfGripTools 1.x, the old plugin is taken out and BepInEx is left in the game, unused (the menu's remove option can take it out).
+- **BepInEx with other plugins**: HalfGripTools stays a BepInEx plugin (`HalfGripTools-v*.zip`). Pointing Doorstop at HalfGripTools would stop the other plugins from loading.
+- **A release that has no standalone zip (1.x)**: the plugin, and BepInEx is installed if it is missing, as before.
+
+The BepInEx card only appears when BepInEx is the way. `config.json` still has the `bepinex` part, for that case and for installers that are already out.
+
+Trying it without a release: `--tools-dir <folder>` takes the zips and `SHA256SUMS.txt` from a folder on this PC (what `tools\package.ps1` in HalfGripTools makes) instead of GitHub's newest release.
 ### Mod pictures
 
 A mod's `mod.json` can say `"icon": "icon.png"`: a PNG inside the mod's folder (HalfGripTools 1.0.5 and newer show it in the in-game mod manager too). It is only a picture; the sprites the game uses for the mod's items stay in `sprites\`. Without it the installer takes the first `sprites\*icon*.png`, then shows a letter. `art\make_icons.py` draws the official ones from the mods' own sprites, plus the HalfGripTools hand with a wrench, the BepInEx plug and the installer's picture and `.ico` (all original, drawn there).
@@ -106,7 +117,7 @@ Needs the .NET SDK 8. Players need nothing: .NET Framework 4.8 is part of Window
 | `src\Sources.cs` | turns a pasted link into a download address |
 | `src\Recommendations.cs` | turns the suggested links into sources |
 | `src\Checker.cs` | downloads, unpacks, finds mods, all the rules |
-| `src\Setup.cs` | BepInEx, HalfGripTools, copying mods, remembering links, removal |
+| `src\Setup.cs` | which way HalfGripTools starts in this game, BepInEx where needed, HalfGripTools, copying mods, moving 1.x mod folders, remembering links, removal |
 | `src\Cache.cs`, `src\Net.cs` | the data folder and one-hour cache; downloads, checksums, plain error messages |
 | `src\SelfUpdate.cs` | notices a newer installer release |
 | `src\MiniJson.cs` | copy of HalfGripTools' JSON reader, so a `mod.json` is read the same way |

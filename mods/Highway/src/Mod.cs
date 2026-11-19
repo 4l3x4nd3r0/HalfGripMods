@@ -1,6 +1,4 @@
-﻿using BepInEx.Configuration;
-using BepInEx.Logging;
-using HalfGripTools;
+﻿using HalfGripTools;
 
 namespace HalfGripHighway
 {
@@ -10,18 +8,18 @@ namespace HalfGripHighway
 	/// </summary>
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<bool> TestMode;
-		internal static ConfigEntry<float> BenchmarkFactor;
-		internal static ConfigEntry<int> MedianGaps;
-		internal static ConfigEntry<float> MedianGapLength;
-		internal static ConfigEntry<bool> ShowPath;
-		internal static ConfigEntry<float> SpeedLossPerPiece;
-		internal static ConfigEntry<float> SignSpeedLoss;
-		internal static ConfigEntry<float> DirtGrip;
-		internal static ConfigEntry<float> DirtDrag;
+		internal static ModSetting<bool> TestMode;
+		internal static ModSetting<float> BenchmarkFactor;
+		internal static ModSetting<int> MedianGaps;
+		internal static ModSetting<float> MedianGapLength;
+		internal static ModSetting<bool> ShowPath;
+		internal static ModSetting<float> SpeedLossPerPiece;
+		internal static ModSetting<float> SignSpeedLoss;
+		internal static ModSetting<float> DirtGrip;
+		internal static ModSetting<float> DirtDrag;
 
 		/// <summary>The map entry the mod adds to the run config, once it exists.</summary>
 		internal static MapDefinition Map;

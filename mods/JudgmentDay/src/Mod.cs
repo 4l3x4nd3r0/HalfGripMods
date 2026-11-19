@@ -1,51 +1,49 @@
-﻿using BepInEx.Configuration;
-using BepInEx.Logging;
-using HalfGripTools;
+﻿using HalfGripTools;
 using UnityEngine;
 
 namespace JudgmentDay
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<float> CostMultiplier;
+		internal static ModSetting<float> CostMultiplier;
 
-		internal static ConfigEntry<float> Damage;
+		internal static ModSetting<float> Damage;
 
-		internal static ConfigEntry<int> TubeShells;
+		internal static ModSetting<int> TubeShells;
 
-		internal static ConfigEntry<int> StartShells;
+		internal static ModSetting<int> StartShells;
 
-		internal static ConfigEntry<int> ShellsPerPickup;
+		internal static ModSetting<int> ShellsPerPickup;
 
-		internal static ConfigEntry<float> TurnsPerCock;
+		internal static ModSetting<float> TurnsPerCock;
 
-		internal static ConfigEntry<float> SpinWindow;
+		internal static ModSetting<float> SpinWindow;
 
-		internal static ConfigEntry<bool> OpenToLoad;
+		internal static ModSetting<bool> OpenToLoad;
 
-		internal static ConfigEntry<float> FlipSeconds;
+		internal static ModSetting<float> FlipSeconds;
 
-		internal static ConfigEntry<float> LeverAngle;
+		internal static ModSetting<float> LeverAngle;
 
-		internal static ConfigEntry<float> PivotBack;
+		internal static ModSetting<float> PivotBack;
 
-		internal static ConfigEntry<float> SpringShare;
+		internal static ModSetting<float> SpringShare;
 
-		internal static ConfigEntry<float> LoadedHold;
+		internal static ModSetting<float> LoadedHold;
 
-		internal static ConfigEntry<float> LeverDrag;
+		internal static ModSetting<float> LeverDrag;
 
-		internal static ConfigEntry<float> GrabMargin;
+		internal static ModSetting<float> GrabMargin;
 
-		internal static ConfigEntry<bool> DragDown;
+		internal static ModSetting<bool> DragDown;
 
-		internal static ConfigEntry<bool> DumpInfo;
+		internal static ModSetting<bool> DumpInfo;
 
-		internal static ConfigEntry<int> ConfigVersion;
+		internal static ModSetting<int> ConfigVersion;
 
 		public override void Load(ModContext ctx)
 		{
@@ -68,9 +66,9 @@ namespace JudgmentDay
 			LeverDrag = ctx.Config.Bind("Judgment Day", "LeverDrag", 0.15f, "How far the mouse moves (as a share of the screen height) to pull the lever all the way open. Lower = a shorter drag works it. The lever follows the mouse's up and down movement, down opens it, up closes it.");
 			GrabMargin = ctx.Config.Bind("Judgment Day", "GrabMargin", 0.8f, "Extra grab margin round the lever's handle (the bottom of the loop), in game units. Higher = easier to catch with the cursor.");
 			DragDown = ctx.Config.Bind("Judgment Day", "DragDown", true, "Work the lever by dragging down (it swings down). Off = drag along the gun like the pump.");
-			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write the game's gun items, the gun's parts and each spin-cock to the BepInEx log. Useful when tuning.");
+			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write the game's gun items, the gun's parts and each spin-cock to the log. Useful when tuning.");
 
-			// BepInEx keeps a value already in the config file when a default changes, so after a retune the old numbers would linger.
+			// The config file keeps a value already in it when a default changes, so after a retune the old numbers would linger.
 			ConfigVersion = ctx.Config.Bind("Debug", "ConfigVersion", 0, "Used by the plugin to reset retuned defaults after an update. Leave it.");
 			if (ConfigVersion.Value < 16)
 			{

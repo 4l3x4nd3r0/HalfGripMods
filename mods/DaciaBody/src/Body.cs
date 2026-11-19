@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BepInEx.Configuration;
 using HalfGripTools;
 using UnityEngine;
 
@@ -14,20 +13,20 @@ namespace HalfGripDaciaBody
 		private const string Flavour = "\"If I survived the Green Hell, nothing can kill me.\"";
 		private const string Section = "Dacia Body";
 
-		private static ConfigEntry<bool> enabled;
-		private static ConfigEntry<int> cost;
-		private static ConfigEntry<ItemTier> tier;
-		private static ConfigEntry<float> maxHp;
-		private static ConfigEntry<float> airDrag;
-		private static ConfigEntry<float> lightGlow;
-		private static ConfigEntry<float> headlightSetback;
-		private static ConfigEntry<float> downForce;
-		private static ConfigEntry<float> rollingFriction;
-		private static ConfigEntry<bool> fwd;
-		private static ConfigEntry<bool> awd;
-		private static ConfigEntry<string> accent;
-		private static ConfigEntry<string> mainColour;
-		private static ConfigEntry<string> trim;
+		private static ModSetting<bool> enabled;
+		private static ModSetting<int> cost;
+		private static ModSetting<ItemTier> tier;
+		private static ModSetting<float> maxHp;
+		private static ModSetting<float> airDrag;
+		private static ModSetting<float> lightGlow;
+		private static ModSetting<float> headlightSetback;
+		private static ModSetting<float> downForce;
+		private static ModSetting<float> rollingFriction;
+		private static ModSetting<bool> fwd;
+		private static ModSetting<bool> awd;
+		private static ModSetting<string> accent;
+		private static ModSetting<string> mainColour;
+		private static ModSetting<string> trim;
 
 		/// <summary>Strength of the headlight and tail light glow while the Dacia is fitted, 0 to 1.</summary>
 		internal static float LightGlow => lightGlow != null ? Mathf.Clamp01(lightGlow.Value) : 1f;
@@ -37,7 +36,7 @@ namespace HalfGripDaciaBody
 
 		private static bool dumped;
 
-		internal static void BindConfig(ConfigFile c)
+		internal static void BindConfig(ModConfig c)
 		{
 			enabled = c.Bind(Section, "Enabled", true, "Put the body in the item catalog (shop, rewards, collection).");
 			cost = c.Bind(Section, "Cost", 45, "Shop price. Legendary parts cost about 35 in the base game.");

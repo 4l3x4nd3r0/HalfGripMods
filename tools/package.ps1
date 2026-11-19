@@ -1,5 +1,5 @@
 # Makes the release zip and its checksum in release\:
-#   HalfGripMods-v<version>.zip   every mod, as source: BepInEx\HalfGripMods\<Mod>\
+#   HalfGripMods-v<version>.zip   every mod, as source: Mods\<Mod>\
 # It unzips straight into the game folder.
 #   .\package.ps1 -Version 1.0.0
 param([Parameter(Mandatory = $true)][string]$Version)
@@ -28,7 +28,7 @@ Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $out | Out-Null
 $stage = Join-Path $env:TEMP ("halfgrip-stage-" + [guid]::NewGuid().ToString("N"))
 try {
-	$target = "$stage\BepInEx\HalfGripMods"
+	$target = "$stage\Mods"
 	New-Item -ItemType Directory -Force $target | Out-Null
 	foreach ($mod in Get-ChildItem "$root\mods" -Directory) { Copy-Item $mod.FullName "$target\$($mod.Name)" -Recurse }
 	Copy-Item "$root\LICENSE" "$target\LICENSE.txt"

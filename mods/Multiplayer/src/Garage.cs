@@ -13,7 +13,10 @@ namespace Multiplayer
 	/// </summary>
 	internal static class Loadout
 	{
-		private static string FilePath { get { return Path.Combine(BepInEx.Paths.ConfigPath, "halfgrip.multiplayer.loadout.txt"); } }
+		/// <summary>Set by <c>Mod.Load</c> to the mod's own data folder (<c>ctx.DataFolder</c>).</summary>
+		internal static string DataFolder = "";
+
+		private static string FilePath { get { return Path.Combine(DataFolder, "loadout.txt"); } }
 
 		/// <summary>The game's own "slot:item,slot:item" string.</summary>
 		internal static string Equipped = "";

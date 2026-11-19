@@ -1,5 +1,3 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 using UnityEngine;
 
@@ -7,35 +5,35 @@ namespace HalfGripRailgun
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<float> MinDamage;
+		internal static ModSetting<float> MinDamage;
 
-		internal static ConfigEntry<float> MaxDamage;
+		internal static ModSetting<float> MaxDamage;
 
-		internal static ConfigEntry<float> ChargeSeconds;
+		internal static ModSetting<float> ChargeSeconds;
 
-		internal static ConfigEntry<float> StillChargeSeconds;
+		internal static ModSetting<float> StillChargeSeconds;
 
-		internal static ConfigEntry<float> FullSpeed;
+		internal static ModSetting<float> FullSpeed;
 
-		internal static ConfigEntry<float> DrainShare;
+		internal static ModSetting<float> DrainShare;
 
-		internal static ConfigEntry<int> Cost;
+		internal static ModSetting<int> Cost;
 
-		internal static ConfigEntry<float> GunScale;
+		internal static ModSetting<float> GunScale;
 
-		internal static ConfigEntry<float> HeldScale;
+		internal static ModSetting<float> HeldScale;
 
-		internal static ConfigEntry<float> Lift;
+		internal static ModSetting<float> Lift;
 
-		internal static ConfigEntry<int> ConfigVersion;
+		internal static ModSetting<int> ConfigVersion;
 
-		internal static ConfigEntry<bool> ScreenBar;
+		internal static ModSetting<bool> ScreenBar;
 
-		internal static ConfigEntry<bool> DumpInfo;
+		internal static ModSetting<bool> DumpInfo;
 
 		/// <summary>The damage one full capacitor adds.</summary>
 		internal static float PerCapacitor => (MaxDamage.Value - MinDamage.Value) / RailLayout.Coils;
@@ -56,9 +54,9 @@ namespace HalfGripRailgun
 			HeldScale = ctx.Config.Bind("Railgun", "HeldScale", 1f, "How big the gun is in your hands while you aim, as a share of the shotgun's. 1 is the shotgun's own size.");
 			Lift = ctx.Config.Bind("Railgun", "CockpitLift", 5f, "How many of the gun's pixels to lift it on the roof lining in the cockpit, so the battery and cable do not disappear behind the rear-view mirror. 0 leaves it where the shotgun sits.");
 			ScreenBar = ctx.Config.Bind("Railgun", "ScreenBar", true, "Draw a thin charge bar under the crosshair while the gun is raised.");
-			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write the game's gun items and the gun's parts to the BepInEx log. Useful when tuning.");
+			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write the game's gun items and the gun's parts to the log. Useful when tuning.");
 
-			// BepInEx keeps a value already in the config file when a default changes, so after a retune the old numbers would linger.
+			// The config file keeps a value already in it when a default changes, so after a retune the old numbers would linger.
 			ConfigVersion = ctx.Config.Bind("Debug", "ConfigVersion", 0, "Used by the plugin to reset retuned defaults after an update. Leave it.");
 			if (ConfigVersion.Value < 7)
 			{

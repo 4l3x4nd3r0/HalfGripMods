@@ -42,7 +42,7 @@ namespace HalfGripModsInstaller
 		/// No arguments: the window. For testing, and for people who like a command line:
 		///   --game-dir &lt;folder&gt;   --add &lt;link&gt; (repeat)   --now (ask GitHub again)   --config &lt;file or address&gt;   --check   --install   (the last two run without a window)
 		/// Only for trying things out: --data-dir &lt;folder&gt; (keep config and cache there instead of in LocalLow), --mods-dir &lt;folder&gt; (take the
-		/// official mods from a folder on this PC), --render &lt;png&gt; --size WxH [--page &lt;card key|how|about&gt;] (draw the window into a picture).
+		/// official mods from a folder on this PC), --tools-dir &lt;folder&gt; (take the HalfGripTools release zips and SHA256SUMS.txt from a folder on this PC), --render &lt;png&gt; --size WxH [--page &lt;card key|how|about&gt;] (draw the window into a picture).
 		/// </summary>
 		[STAThread]
 		private static int Main(string[] args)
@@ -72,6 +72,9 @@ namespace HalfGripModsInstaller
 						break;
 					case "--mods-dir" when i + 1 < args.Length:
 						Source.OfficialLocalDir = Path.GetFullPath(args[++i]);
+						break;
+					case "--tools-dir" when i + 1 < args.Length:
+						Setup.ToolsDirOverride = Path.GetFullPath(args[++i]);
 						break;
 					case "--render" when i + 1 < args.Length:
 						render = Path.GetFullPath(args[++i]);
@@ -209,7 +212,8 @@ namespace HalfGripModsInstaller
 
 		private static void Print(CheckResult result)
 		{
-			Log.Write("BepInEx: " + (result.BepInExVersion ?? "none") + " -> " + result.BepInExTarget.Version + (result.BepInExTarget.FromFile ? " (from config.json)" : " (built in)") + (result.BepInExNeeded ? ", will be " + (result.BepInEx ? "updated" : "installed") : ", current"));
+			Log.Write("Host: HalfGripTools starts " + (result.Host == HostKind.Standalone ? "by itself, without BepInEx" : "inside BepInEx (other BepInEx plugins are in the game, or the release is a 1.x one)"));
+			Log.Write("BepInEx: " + (result.BepInExVersion ?? "none") + " -> " + result.BepInExTarget.Version + (result.BepInExTarget.FromFile ? " (from config.json)" : " (built in)") + (result.BepInExNeeded ? ", will be " + (result.BepInEx ? "updated" : "installed") : result.Host == HostKind.Standalone ? ", not needed" : ", current"));
 			Log.Write("HalfGripTools: " + (result.Tools != null ? (result.ToolsInstalled ?? "none") + " -> " + result.Tools.Tag : "ERROR " + result.ToolsError));
 			foreach (SourceResult source in result.Sources)
 			{

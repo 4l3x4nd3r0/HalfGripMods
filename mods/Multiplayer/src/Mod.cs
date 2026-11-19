@@ -1,4 +1,3 @@
-using BepInEx.Logging;
 using HalfGripTools;
 using UnityEngine;
 
@@ -6,7 +5,7 @@ namespace Multiplayer
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 		private static GameObject runner;
 		internal static ModContext Ctx;
 		/// <summary>True on the frame the spectate key (Tab, rebindable in Settings > Controls) goes down.</summary>
@@ -19,6 +18,7 @@ namespace Multiplayer
 		public override void Load(ModContext ctx)
 		{
 			Log = ctx.Log;
+			Loadout.DataFolder = ctx.DataFolder;
 			Ctx = ctx;
 			if (!ModKeyShim.Supported(ctx))
 			{

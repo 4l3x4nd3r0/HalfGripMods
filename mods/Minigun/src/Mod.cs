@@ -1,5 +1,3 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 using UnityEngine;
 
@@ -7,45 +5,45 @@ namespace HalfGripMinigun
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<float> Damage;
+		internal static ModSetting<float> Damage;
 
-		internal static ConfigEntry<float> RoundsPerSecond;
+		internal static ModSetting<float> RoundsPerSecond;
 
-		internal static ConfigEntry<int> Magazines;
+		internal static ModSetting<int> Magazines;
 
-		internal static ConfigEntry<float> SecondsPerMagazine;
+		internal static ModSetting<float> SecondsPerMagazine;
 
-		internal static ConfigEntry<float> CoolSeconds;
+		internal static ModSetting<float> CoolSeconds;
 
-		internal static ConfigEntry<float> OverheatPenalty;
+		internal static ModSetting<float> OverheatPenalty;
 
-		internal static ConfigEntry<float> RepeatPenalty;
+		internal static ModSetting<float> RepeatPenalty;
 
-		internal static ConfigEntry<float> BoxLockRelief;
+		internal static ModSetting<float> BoxLockRelief;
 
-		internal static ConfigEntry<float> SpinUp;
+		internal static ModSetting<float> SpinUp;
 
-		internal static ConfigEntry<int> Cost;
+		internal static ModSetting<int> Cost;
 
-		internal static ConfigEntry<float> RemoteShift;
+		internal static ModSetting<float> RemoteShift;
 
-		internal static ConfigEntry<bool> RemoteAuto;
+		internal static ModSetting<bool> RemoteAuto;
 
-		internal static ConfigEntry<float> DisplayShift;
+		internal static ModSetting<float> DisplayShift;
 
-		internal static ConfigEntry<float> DisplayScale;
+		internal static ModSetting<float> DisplayScale;
 
-		internal static ConfigEntry<float> HeldScale;
+		internal static ModSetting<float> HeldScale;
 
-		internal static ConfigEntry<bool> RoofGunVisible;
+		internal static ModSetting<bool> RoofGunVisible;
 
-		internal static ConfigEntry<bool> DumpInfo;
+		internal static ModSetting<bool> DumpInfo;
 
-		internal static ConfigEntry<int> ConfigVersion;
+		internal static ModSetting<int> ConfigVersion;
 
 		public override void Load(ModContext ctx)
 		{
@@ -68,9 +66,9 @@ namespace HalfGripMinigun
 			DisplayScale = ctx.Config.Bind("Minigun", "DisplayScale", 0.85f, "How big the HEAT display is, as a share of its first size (5 cockpit units wide).");
 			HeldScale = ctx.Config.Bind("Minigun", "HeldScale", 1f, "How big the remote is in your hand while you aim, as a share of the SMG's size. 1 is the size that was checked in the game.");
 			RoofGunVisible = ctx.Config.Bind("Minigun", "RoofGun", true, "Put the minigun on the roof of the car. Its bullets leave from there, so you see the tracers start above the car.");
-			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write the game's gun items and the gun's parts to the BepInEx log. Useful when tuning.");
+			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write the game's gun items and the gun's parts to the log. Useful when tuning.");
 
-			// BepInEx keeps a value already in the config file when a default changes, so after a retune the old numbers would linger.
+			// The config file keeps a value already in it when a default changes, so after a retune the old numbers would linger.
 			ConfigVersion = ctx.Config.Bind("Debug", "ConfigVersion", 0, "Used by the plugin to reset retuned defaults after an update. Leave it.");
 			if (ConfigVersion.Value < 7)
 			{

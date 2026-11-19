@@ -1,4 +1,4 @@
-# Compiles every mod's C# source against the game, BepInEx and HalfGripTools, without starting the game, to catch errors early.
+# Compiles every mod's C# source against the game, Harmony and HalfGripTools, without starting the game, to catch errors early.
 # It uses the same language version (C# 10) as the compiler inside HalfGripTools. Nothing is written to the repo.
 # HalfGripTools must be installed in the game (see the README), its DLL is the one the mods compile against.
 #   .\check-mods.ps1                          all mods
@@ -14,8 +14,11 @@ if (Test-Path "$env:USERPROFILE\.dotnet\dotnet.exe") {
 }
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
 
-if ($Tools -eq "") { $Tools = "$GameDir\BepInEx\plugins\HalfGripTools\HalfGripTools.dll" }
-if (-not (Test-Path $Tools)) { throw "HalfGripTools.dll not found at $Tools. Install HalfGripTools first (README, step 2), or pass -Tools." }
+# HalfGripTools 2.0 sits next to the game (standalone) or inside BepInEx; Harmony is in the same place, or in BepInEx\core.
+if ($Tools -eq "") { $Tools = if (Test-Path "$GameDir\HalfGripTools\HalfGripTools.dll") { "$GameDir\HalfGripTools\HalfGripTools.dll" } else { "$GameDir\BepInEx\plugins\HalfGripTools\HalfGripTools.dll" } }
+if (-not (Test-Path $Tools)) { throw "HalfGripTools.dll not found at $Tools. Install HalfGripTools first (README, step 1), or pass -Tools." }
+$Harmony = if (Test-Path "$(Split-Path $Tools)\0Harmony.dll") { "$(Split-Path $Tools)\0Harmony.dll" } else { "$GameDir\BepInEx\core\0Harmony.dll" }
+if (-not (Test-Path $Harmony)) { throw "0Harmony.dll not found (looked next to $Tools and in BepInEx\core)." }
 
 $failed = @()
 foreach ($dir in Get-ChildItem "$root\mods" -Directory) {
@@ -38,8 +41,7 @@ foreach ($dir in Get-ChildItem "$root\mods" -Directory) {
   <ItemGroup>
     <Compile Include="$($dir.FullName)\src\**\*.cs" />
     <Reference Include="$managed\*.dll" Exclude="$managed\mscorlib.dll;$managed\netstandard.dll;$managed\System*.dll" />
-    <Reference Include="$GameDir\BepInEx\core\BepInEx.dll" />
-    <Reference Include="$GameDir\BepInEx\core\0Harmony.dll" />
+    <Reference Include="$Harmony" />
     <Reference Include="$Tools" />
   </ItemGroup>
 </Project>

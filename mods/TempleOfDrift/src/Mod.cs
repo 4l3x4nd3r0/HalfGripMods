@@ -1,5 +1,3 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 
 namespace TempleOfDrift
@@ -11,32 +9,32 @@ namespace TempleOfDrift
 	/// </summary>
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<bool> TestMode;
-		internal static ConfigEntry<float> BenchmarkFactor;
-		internal static ConfigEntry<float> DirtGrip;
-		internal static ConfigEntry<float> DirtDrag;
-		internal static ConfigEntry<float> PaintGrip;
-		internal static ConfigEntry<float> HairpinGrip;
-		internal static ConfigEntry<float> TougeGrip;
-		internal static ConfigEntry<int> ForkLanterns;
-		internal static ConfigEntry<bool> GuideWalls;
-		internal static ConfigEntry<float> TimberEntranceBreakSpeed;
-		internal static ConfigEntry<float> TimberExitBreakSpeed;
-		internal static ConfigEntry<float> TimberSpeedKept;
-		internal static ConfigEntry<float> BambooFellSpeed;
-		internal static ConfigEntry<float> BambooSpeedKept;
-		internal static ConfigEntry<float> GravelGrip;
-		internal static ConfigEntry<float> GravelDrag;
-		internal static ConfigEntry<float> ShortWayGrip;
-		internal static ConfigEntry<float> ShortWayDrag;
-		internal static ConfigEntry<float> SpeedLossPerPiece;
-		internal static ConfigEntry<int> CaveLights;
-		internal static ConfigEntry<int> TreeCount;
-		internal static ConfigEntry<bool> PlayMusic;
-		internal static ConfigEntry<bool> ShowPath;
+		internal static ModSetting<bool> TestMode;
+		internal static ModSetting<float> BenchmarkFactor;
+		internal static ModSetting<float> DirtGrip;
+		internal static ModSetting<float> DirtDrag;
+		internal static ModSetting<float> PaintGrip;
+		internal static ModSetting<float> HairpinGrip;
+		internal static ModSetting<float> TougeGrip;
+		internal static ModSetting<int> ForkLanterns;
+		internal static ModSetting<bool> GuideWalls;
+		internal static ModSetting<float> TimberEntranceBreakSpeed;
+		internal static ModSetting<float> TimberExitBreakSpeed;
+		internal static ModSetting<float> TimberSpeedKept;
+		internal static ModSetting<float> BambooFellSpeed;
+		internal static ModSetting<float> BambooSpeedKept;
+		internal static ModSetting<float> GravelGrip;
+		internal static ModSetting<float> GravelDrag;
+		internal static ModSetting<float> ShortWayGrip;
+		internal static ModSetting<float> ShortWayDrag;
+		internal static ModSetting<float> SpeedLossPerPiece;
+		internal static ModSetting<int> CaveLights;
+		internal static ModSetting<int> TreeCount;
+		internal static ModSetting<bool> PlayMusic;
+		internal static ModSetting<bool> ShowPath;
 
 		/// <summary>The map entry the mod adds to the run config, once it exists.</summary>
 		internal static MapDefinition Map;
@@ -70,8 +68,8 @@ namespace TempleOfDrift
 			TimberExitBreakSpeed = ctx.Config.Bind("Timber", "ExitBreakSpeed", 60f, "The same for the barricade at the exit of the short way.");
 			TimberSpeedKept = ctx.Config.Bind("Timber", "SpeedKept", 0.9f, "Share of its speed a car keeps after breaking a barricade.");
 			ForkLanterns = ctx.Config.Bind("Cave", "ForkLanterns", 2, "Lit stone lanterns along the long way from the fork (0 for none).");
-			// BepInEx keeps a value saved in the cfg over a new default, so a preset version resets the three grip values once when the defaults change
-			ConfigEntry<int> preset = ctx.Config.Bind("Info", "GripPresetVersion", 0, "Internal: which default grip values this file was last reset to. Edit the grip values, not this.");
+			// The cfg file keeps a saved value over a new default, so a preset version resets the three grip values once when the defaults change
+			ModSetting<int> preset = ctx.Config.Bind("Info", "GripPresetVersion", 0, "Internal: which default grip values this file was last reset to. Edit the grip values, not this.");
 			if (preset.Value < 2)
 			{
 				TougeGrip.Value = (float)TougeGrip.DefaultValue;

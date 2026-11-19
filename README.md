@@ -32,7 +32,7 @@ You need Windows and the game on Steam.
 2. Close the game, then press **INSTALL ALL**.
 3. Start the game from Steam.
 
-The installer finds the game folder through Steam (or asks you to pick it), installs BepInEx 5.4.23.5 and the latest HalfGripTools, checks both downloads against their checksums, and copies in the mods. Every mod is a card with a picture: press **INSTALL** on one mod, or click its card to read more first. Open it again to update. It asks GitHub once an hour, and **CHECK NOW** asks straight away. The menu button (top right) has **Remove the mods from the game**, which takes everything out again (it asks first, asks separately about BepInEx, and never touches your saves), and **How to use** shows the steps inside the program. The window can be made small, down to 640x360.
+The installer finds the game folder through Steam (or asks you to pick it), installs the latest HalfGripTools (version 2.0 needs no BepInEx; the installer only uses BepInEx if other BepInEx plugins are already in the game), checks the download against its checksum, and copies the mods into the `Mods` folder. Every mod is a card with a picture: press **INSTALL** on one mod, or click its card to read more first. Open it again to update. It asks GitHub once an hour, and **CHECK NOW** asks straight away. The menu button (top right) has **Remove the mods from the game**, which takes everything out again (it asks first, asks separately about BepInEx, and never touches your saves or anything you subscribed to on Steam's Workshop), and **How to use** shows the steps inside the program. The window can be made small, down to 640x360.
 
 It can also add mods from other people's GitHub pages: **+ ADD**, paste the link, press ADD. It shows a **SUGGESTED** section with community mods I suggest; nothing from it installs until you press its button. Only add links from people you trust. The installer refuses any mod that contains a program file, and it never touches your saves.
 
@@ -42,15 +42,15 @@ If you do not like running unknown software, the detailed steps are below, and t
 
 ### Manual steps
 
-1. Install BepInEx and HalfGripTools. Steps 1 and 2 of the [HalfGripTools README](https://github.com/4l3x4nd3r0/HalfGripTools#install) cover both. Do this once.
-2. Download this repo: click **Code**, then **Download ZIP** (or `git clone`), and unzip it. Copy the folders you want from [`mods/`](mods) into `BepInEx\HalfGripMods\` in the game folder (the one with `HalfGrip.exe`). Each folder is one mod. To install all of them you get:
+1. Install HalfGripTools 2.0 (no BepInEx needed). The [HalfGripTools README](https://github.com/4l3x4nd3r0/HalfGripTools#install) says how. Do this once. (A mod here needs HalfGripTools 2.0; the version before it, 1.0.6, used BepInEx types that the mods no longer use.)
+2. Download this repo: click **Code**, then **Download ZIP** (or `git clone`), and unzip it. Copy the folders you want from [`mods/`](mods) into the `Mods` folder in the game folder (the one with `HalfGrip.exe`; make it if it is not there). Each folder is one mod. To install all of them you get:
 
 ```
-BepInEx\HalfGripMods\
+Mods\
   M1911\  RPG\  SniperRifle\  Railgun\  JudgmentDay\  Minigun\  SpeedCharms\  DaciaBody\  BombRace\  InfinitePlayground\  Highway\  TempleOfDrift\  Multiplayer\
 ```
 
-3. Start the game, quit, open `BepInEx\LogOutput.log`. Each mod that loaded has a line:
+3. Start the game, quit, open the log: `HalfGripTools.log` in `%USERPROFILE%\AppData\LocalLow\Half Games\HalfGrip\Mods` (or `BepInEx\LogOutput.log` if you run HalfGripTools inside BepInEx). Each mod that loaded has a line:
 
 ```
 [Info   :HalfGripTools] Sniper Rifle: compiled 9 files in 66 ms
@@ -148,7 +148,7 @@ Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the
 
 **Using it.** The MULTIPLAYER screen has GARAGE, HOST ROOM and JOIN ROOM.
 
-- GARAGE opens the game's garage with no room: no shop, no money, every item in the inventory except map rerolls, run boons and other consumables. What you fit is kept in `BepInEx\config\halfgrip.multiplayer.loadout.txt`. With nothing fitted you start with the Gunslinger and Nitro Head items, without Nitro Head's handicap. Esc goes back.
+- GARAGE opens the game's garage with no room: no shop, no money, every item in the inventory except map rerolls, run boons and other consumables. What you fit is kept in `storage\multiplayer\loadout.txt` in HalfGripTools' data folder. With nothing fitted you start with the Gunslinger and Nitro Head items, without Nitro Head's handicap. Esc goes back.
 - HOST ROOM makes a Steam lobby and a 6-character code. Others type it under JOIN ROOM, or accept a Steam invite while they are at the main menu. INVITE FRIENDS lists your online Steam friends. The host can lock the room and kick players.
 - In the room everybody but the host presses READY. The host sees START RACE (grey until all are ready) and sets the race in RACE SETTINGS: map (or RANDOM: the host rolls a map and layout at every start, never the same map twice in a row), layout, mode (Race, Tournament, Demolition or CUSTOM: 20 players, up to 100 laps), laps, AI rivals (up to the mode's player limit), what a wreck does (out and watch, or respawn after a delay), and the damage multipliers. BOTS opens a second view for the AI rivals: how aggressive they drive and shoot (normal, +25%, hardcore, +75%, ultra), how they are kitted (starter, half, fully kitted, speed demons, combat, like a run, random), and whether every bot is the same, mixed around your choice or random. Other players can open the settings but not change them. When more players are in the room than the mode takes, the ones who joined last watch.
 - During the race Pause does not stop time. Your car is released while the menu is open. Leaving from it is a disconnect.
@@ -170,14 +170,14 @@ Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the
 
 **Limits:** other players' gunfire, rockets and tracers are not drawn on your screen, only what they do. Slow-Mo and the Inverter work on everybody in a room: a lever pull slows every player to half speed (pulls overlap, they do not add up), and an Inverter flip rewinds every player's car. If the host leaves, the room closes. The AI cars run in the host's game, so if the host leaves the room closes. The AI KO count only knows about gun hits, not rams.
 
-Settings (`halfgrip.multiplayer.cfg`, also changed from the lobby and remembered): `GunDamage`, `ExplosionDamage`, `ItemDamage`, `RamDamage`, `AiGunDamage`, `TireShots`, and `Laps`, `AiRivals`, `WreckRule`, `RespawnSeconds` for new rooms.
+Settings (`config\multiplayer.cfg`, also changed from the lobby and remembered): `GunDamage`, `ExplosionDamage`, `ItemDamage`, `RamDamage`, `AiGunDamage`, `TireShots`, and `Laps`, `AiRivals`, `WreckRule`, `RespawnSeconds` for new rooms.
 
 The mod also contains a test harness (`Rig*.cs`, the local backend in `Backend.cs`). It does nothing unless the game is started with `-mprig`; see `tools/mp-test.ps1`.
 
 Have fun.
 ## Settings, update, remove
 
-- Settings: each code mod writes `BepInEx\config\halfgrip.<mod id>.cfg` on first run, for example `halfgrip.sniperrifle.cfg`. Every entry has a comment. Edit with the game closed.
+- Settings: each code mod writes `config\<mod id>.cfg` in HalfGripTools' data folder (`%USERPROFILE%\AppData\LocalLow\Half Games\HalfGrip\Mods`) on first run, for example `sniperrifle.cfg`. Every entry has a comment. Edit with the game closed. Your 1.x settings are copied there the first time.
 - Update: download the repo again and replace the mod folder. It recompiles at the next start.
 - Remove: delete the folder, or switch it off in the mod manager. To remove everything, use the installer: menu, Remove the mods from the game.
 - Saves: items are saved by id. Without their mod, a saved run loses those items. Nothing else in the save changes.
@@ -198,7 +198,7 @@ Expected: no output. In Multiplayer the same search finds the Steam calls, the l
 You need the .NET 8 SDK and HalfGripTools installed in the game. All scripts take `-GameDir "C:\path\to\Half Grip Demo"`.
 
 ```powershell
-.\tools\install.ps1                       # install the latest HalfGripTools release, then copy the mods into BepInEx\HalfGripMods in the game
+.\tools\install.ps1                       # install the latest HalfGripTools release, then copy the mods into the Mods folder in the game
 .\tools\check-mods.ps1                    # compile every mod without starting the game
 .\tools\check-mods.ps1 -Mod BombRace      # one mod
 .\tools\package.ps1 -Version 1.0.0        # release zip in release\

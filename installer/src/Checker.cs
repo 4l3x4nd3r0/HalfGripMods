@@ -13,7 +13,7 @@ namespace HalfGripModsInstaller
 
 		internal string SourceKey = "";
 
-		/// <summary>The folder name it gets in BepInEx\HalfGripMods.</summary>
+		/// <summary>The folder name it gets in the Mods folder.</summary>
 		internal string Folder = "";
 
 		/// <summary>Where it sits after unzipping (a temporary folder).</summary>
@@ -113,8 +113,11 @@ namespace HalfGripModsInstaller
 
 		internal bool BepInEx => BepInExVersion != null;
 
-		/// <summary>BepInEx is missing, or older than the version in versions.json.</summary>
-		internal bool BepInExNeeded => BepInExVersion == null || Setup.IsOlder(BepInExVersion, BepInExTarget.Version);
+		/// <summary>How HalfGripTools starts in this game: by itself (standalone), or inside BepInEx because other plugins already use it.</summary>
+		internal HostKind Host;
+
+		/// <summary>BepInEx is only needed when HalfGripTools has to run inside it (see Setup.ChooseHost), and is missing or older than the version in config.json.</summary>
+		internal bool BepInExNeeded => Host == HostKind.BepInEx && (BepInExVersion == null || Setup.IsOlder(BepInExVersion, BepInExTarget.Version));
 
 		/// <summary>HalfGripTools is missing or is not the newest release. False when its release could not be looked up.</summary>
 		internal bool ToolsNeeded => Tools != null && !Setup.ToolsCurrent(ToolsInstalled, Tools);
@@ -144,7 +147,7 @@ namespace HalfGripModsInstaller
 
 		internal static CheckResult Run(string gameDir, IList<Source> sources, string work, Action<string> report)
 		{
-			CheckResult result = new CheckResult { BepInExVersion = Setup.InstalledBepInEx(gameDir), BepInExTarget = Setup.PlanBepInEx(), ToolsInstalled = Setup.InstalledTools(gameDir) };
+			CheckResult result = new CheckResult { BepInExVersion = Setup.InstalledBepInEx(gameDir), BepInExTarget = Setup.PlanBepInEx() };
 			result.BepInExIcon = Config.Picture(result.BepInExTarget.IconUrl);
 			result.ToolsIcon = Config.Picture(Config.Current.ToolsIconUrl);
 			report("Looking up HalfGripTools ...");
@@ -156,6 +159,9 @@ namespace HalfGripModsInstaller
 			{
 				result.ToolsError = Setup.Friendly(e);
 			}
+			// The way HalfGripTools starts depends on the release (does it have the standalone zip?) and on what is in the game.
+			result.Host = Setup.ChooseHost(gameDir, result.Tools);
+			result.ToolsInstalled = Setup.InstalledTools(gameDir, result.Host);
 
 			List<InstalledMod> installed = Setup.ReadInstalled(gameDir);
 			Memory memory = Memory.Load(gameDir);
@@ -314,7 +320,10 @@ namespace HalfGripModsInstaller
 				mod.Author = MiniJson.String(obj, "author");
 				mod.Description = MiniJson.String(obj, "description");
 				mod.GameVersion = MiniJson.String(obj, "gameVersion");
-				mod.Tools = MiniJson.String(obj, "tools");
+				// "apiVersion" and "tools" mean the same; the newer one counts.
+				string api = MiniJson.String(obj, "apiVersion");
+				string oldest = MiniJson.String(obj, "tools");
+				mod.Tools = Version.TryParse(api, out Version apiVersion) && (!Version.TryParse(oldest, out Version toolsVersion) || apiVersion > toolsVersion) ? api : oldest;
 				mod.Requires = MiniJson.List(obj, "requires").OfType<string>().ToArray();
 				iconName = MiniJson.String(obj, "icon");
 			}

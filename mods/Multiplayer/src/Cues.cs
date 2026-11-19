@@ -380,7 +380,10 @@ namespace Multiplayer
 				rocketType = null;
 				return;
 			}
-			Mod.Ctx.Harmony.Patch(explode, prefix: new HarmonyMethod(typeof(Cues), nameof(ExplodePrefix)));
+			// A patch on another mod's method, made when that mod is found, so it cannot be a [HarmonyPatch] class. Own instance, removed on unload.
+			Harmony rocketPatch = new Harmony(Mod.Ctx.HarmonyId + ".rockets");
+			rocketPatch.Patch(explode, prefix: new HarmonyMethod(typeof(Cues), nameof(ExplodePrefix)));
+			Mod.Ctx.OnUnload(() => rocketPatch.UnpatchSelf());
 			Mod.Log.LogInfo("RPG found: its rockets are shown to the other players.");
 		}
 

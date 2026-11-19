@@ -173,14 +173,16 @@ namespace HalfGripModsInstaller
 			{
 				placed.Add(new Placed { Kind = Kind.Title, Bounds = new Rectangle(pad, y, Width - 2 * pad, S(28)), Text = "REQUIRED", Extra = "Needed by every mod" });
 				y += S(36);
-				for (int i = 0; i < 2; i++)
+				// HalfGripTools alone, unless it has to run inside BepInEx (other BepInEx plugins are in the game): then BepInEx is a requirement too.
+				string[] bases = result.Host == HostKind.BepInEx ? new[] { "bepinex", "tools" } : new[] { "tools" };
+				for (int i = 0; i < bases.Length; i++)
 				{
 					int col = i % cols;
 					if (col == 0 && i > 0)
 					{
 						y += cardH + gap;
 					}
-					placed.Add(new Placed { Kind = Kind.Base, Bounds = new Rectangle(pad + col * (cardW + gap), y, cardW, cardH), Text = i == 0 ? "bepinex" : "tools" });
+					placed.Add(new Placed { Kind = Kind.Base, Bounds = new Rectangle(pad + col * (cardW + gap), y, cardW, cardH), Text = bases[i] });
 				}
 				y += cardH + gap + S(8);
 			}
@@ -371,7 +373,7 @@ namespace HalfGripModsInstaller
 				Name = "BepInEx",
 				Version = missing ? want : (needed ? have + " → " + want : have),
 				Author = "the BepInEx team",
-				Text = "The base every Half Grip mod loader runs on. Taken from BepInEx's own GitHub release and checked against a fixed checksum.",
+				Text = "HalfGripTools runs inside BepInEx here because other BepInEx plugins are in the game. Taken from BepInEx's own GitHub release and checked against a fixed checksum.",
 				IconPath = result.BepInExIcon,
 				BuiltIn = "bepinex",
 				From = "github.com/BepInEx/BepInEx",
@@ -413,7 +415,7 @@ namespace HalfGripModsInstaller
 			face.State = missing ? "MISSING" : (needed ? "UPDATE" : "INSTALLED");
 			face.StateColor = missing ? Theme.Red : (needed ? Theme.Amber : Theme.Dim);
 			face.Version = missing ? plan.Tag : (needed ? have + " → " + plan.Tag : have);
-			face.Text = "Loads the mods, compiles them when the game starts, and adds the mod manager to the main menu.";
+			face.Text = "Loads the mods, compiles them when the game starts, and adds the mod manager to the main menu. " + (result.Host == HostKind.Standalone ? "Starts by itself: no BepInEx needed." : "Runs inside BepInEx.");
 			face.Button = missing ? "INSTALL" : (needed ? "UPDATE" : "REINSTALL");
 			face.ButtonEnabled = true;
 			face.Grey = !missing && !needed;

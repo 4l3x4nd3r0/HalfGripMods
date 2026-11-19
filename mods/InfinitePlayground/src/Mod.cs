@@ -1,17 +1,15 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 
 namespace HalfGripInfinitePlayground
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
-		internal static ConfigEntry<bool> FloorEnabled;
-		internal static ConfigEntry<float> HeightOffset;
-		internal static ConfigEntry<float> Size;
-		internal static ConfigEntry<float> TileSize;
+		internal static ModSetting<bool> FloorEnabled;
+		internal static ModSetting<float> HeightOffset;
+		internal static ModSetting<float> Size;
+		internal static ModSetting<float> TileSize;
 
 		public override void Load(ModContext ctx)
 		{

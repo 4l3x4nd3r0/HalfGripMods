@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using BepInEx.Logging;
 using HalfGripTools;
 using UnityEngine;
 
@@ -64,7 +63,7 @@ namespace Multiplayer
 			{
 				return;
 			}
-			ManualLogSource log = Mod.Log;
+			ModLog log = Mod.Log;
 			mods = new List<ModSum>();
 			try
 			{

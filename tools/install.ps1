@@ -1,9 +1,11 @@
-# Installs the latest HalfGripTools release every time, then copies the mods into the game folder: BepInEx\HalfGripMods\<Mod>.
-# Other mods already there are left alone. BepInEx must be installed already (README, step 1).
+# Installs the latest HalfGripTools release every time, then copies the mods into the game folder: Mods\<Mod>.
+# Other mods already there are left alone.
 #   .\install.ps1
 #   .\install.ps1 -Mod SniperRifle              one mod
 #   .\install.ps1 -GameDir "D:\Games\Half Grip Demo"
 #   .\install.ps1 -SkipTools                    mods only, no HalfGripTools download
+# HalfGripTools 2.0 needs no BepInEx: it starts by itself (the standalone zip). It runs inside BepInEx only where other BepInEx plugins are in the
+# game already, or if the newest release is a 1.x one (then BepInEx must be installed, see the HalfGripTools README).
 # The HalfGripTools zip is checked against the release's SHA256SUMS.txt before anything is copied.
 # It overwrites the installed HalfGripTools, so a local build newer than the release is replaced too (use -SkipTools to keep it).
 param([string]$GameDir = "F:\SteamLibrary\steamapps\common\Half Grip Demo", [string]$Mod = "", [switch]$SkipTools)
@@ -12,8 +14,10 @@ $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $root = Split-Path -Parent $PSScriptRoot
 $ToolsApi = "https://api.github.com/repos/4l3x4nd3r0/HalfGripTools/releases/latest"
-$toolsDll = "$GameDir\BepInEx\plugins\HalfGripTools\HalfGripTools.dll"
-if (-not (Test-Path "$GameDir\BepInEx\core\BepInEx.dll")) { throw "BepInEx is not installed in $GameDir (README, step 1)" }
+$bepinex = Test-Path "$GameDir\BepInEx\core\BepInEx.dll"
+$otherPlugins = $bepinex -and (Test-Path "$GameDir\BepInEx\plugins") -and @(Get-ChildItem "$GameDir\BepInEx\plugins" | Where-Object { $_.Name -ne "HalfGripTools" }).Count -gt 0
+$standaloneDll = "$GameDir\HalfGripTools\HalfGripTools.dll"
+$pluginDll = "$GameDir\BepInEx\plugins\HalfGripTools\HalfGripTools.dll"
 
 if (-not $SkipTools) {
 	Write-Host "HalfGripTools"
@@ -21,9 +25,14 @@ if (-not $SkipTools) {
 	$work = Join-Path $env:TEMP ("HalfGripTools-" + [guid]::NewGuid().ToString("N"))
 	try {
 		$release = Invoke-RestMethod $ToolsApi -UseBasicParsing
-		$zipAsset = $release.assets | Where-Object { $_.name -like "HalfGripTools-*.zip" } | Select-Object -First 1
+		$standaloneAsset = $release.assets | Where-Object { $_.name -like "HalfGripToolsStandalone-*.zip" } | Select-Object -First 1
+		$pluginAsset = $release.assets | Where-Object { $_.name -like "HalfGripTools-*.zip" } | Select-Object -First 1
 		$sumAsset = $release.assets | Where-Object { $_.name -eq "SHA256SUMS.txt" } | Select-Object -First 1
+		# standalone unless BepInEx has other plugins (they would lose their loader) or the release has no standalone zip
+		$standalone = ($null -ne $standaloneAsset) -and -not $otherPlugins
+		$zipAsset = if ($standalone) { $standaloneAsset } else { $pluginAsset }
 		if (-not $zipAsset -or -not $sumAsset) { throw "The latest HalfGripTools release has no zip or SHA256SUMS.txt." }
+		if (-not $standalone -and -not $bepinex) { throw "The latest HalfGripTools release ($($release.tag_name)) runs inside BepInEx, which is not installed in $GameDir (HalfGripTools README, step 1)." }
 		New-Item -ItemType Directory -Force $work | Out-Null
 		$zip = Join-Path $work $zipAsset.name
 		Invoke-WebRequest $zipAsset.browser_download_url -OutFile $zip -UseBasicParsing
@@ -34,18 +43,28 @@ if (-not $SkipTools) {
 		$actual = (Get-FileHash $zip -Algorithm SHA256).Hash
 		if ($actual -ne $expected.ToUpper()) { throw "HalfGripTools failed its SHA-256 check (got $actual, expected $expected). Nothing was installed." }
 		Expand-Archive $zip -DestinationPath $GameDir -Force
-		Write-Host "  Installed $($release.tag_name) (checksum matched)."
+		if ($standalone -and (Test-Path "$GameDir\BepInEx\plugins\HalfGripTools")) {
+			# Doorstop now starts HalfGripTools by itself; the 1.x plugin would only be a second copy.
+			Remove-Item "$GameDir\BepInEx\plugins\HalfGripTools" -Recurse -Force
+			Write-Host "  Took the old HalfGripTools plugin out of BepInEx\plugins."
+		}
+		Write-Host "  Installed $($release.tag_name) ($(if ($standalone) { 'standalone, no BepInEx needed' } else { 'inside BepInEx' }), checksum matched)."
 	}
 	catch {
-		if (Test-Path $toolsDll) { Write-Warning "Could not update HalfGripTools: $($_.Exception.Message) Keeping the installed one." }
+		if ((Test-Path $standaloneDll) -or (Test-Path $pluginDll)) { Write-Warning "Could not update HalfGripTools: $($_.Exception.Message) Keeping the installed one." }
 		else { throw }
 	}
 	finally { if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue } }
 }
-elseif (-not (Test-Path $toolsDll)) { Write-Warning "HalfGripTools is not installed in $GameDir. The mods will not load without it." }
+elseif (-not ((Test-Path $standaloneDll) -or (Test-Path $pluginDll))) { Write-Warning "HalfGripTools is not installed in $GameDir. The mods will not load without it." }
 
 foreach ($dir in Get-ChildItem "$root\mods" -Directory) {
 	if ($Mod -ne "" -and $dir.Name -ne $Mod) { continue }
-	robocopy $dir.FullName "$GameDir\BepInEx\HalfGripMods\$($dir.Name)" /MIR /XD bin obj .vs /XF *.csproj .gitignore /NFL /NDL /NJH /NJS | Out-Null
+	robocopy $dir.FullName "$GameDir\Mods\$($dir.Name)" /MIR /XD bin obj .vs /XF *.csproj .gitignore /NFL /NDL /NJH /NJS | Out-Null
+	# a copy of the same mod in the 1.x folder would be a second, different copy of it: the game would give one of them a new id
+	if (Test-Path "$GameDir\BepInEx\HalfGripMods\$($dir.Name)") {
+		Remove-Item "$GameDir\BepInEx\HalfGripMods\$($dir.Name)" -Recurse -Force
+		Write-Host "  (removed the old copy in BepInEx\HalfGripMods)"
+	}
 	Write-Host "Installed $($dir.Name)"
 }

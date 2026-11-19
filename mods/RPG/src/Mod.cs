@@ -1,32 +1,30 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 
 namespace HalfGripRpg
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<float> ExplosionDamage;
+		internal static ModSetting<float> ExplosionDamage;
 
-		internal static ConfigEntry<float> DirectHitDamage;
+		internal static ModSetting<float> DirectHitDamage;
 
-		internal static ConfigEntry<float> CarLength;
+		internal static ModSetting<float> CarLength;
 
-		internal static ConfigEntry<float> LaunchSpeed;
+		internal static ModSetting<float> LaunchSpeed;
 
-		internal static ConfigEntry<float> MaxSpeed;
+		internal static ModSetting<float> MaxSpeed;
 
-		internal static ConfigEntry<int> Rockets;
+		internal static ModSetting<int> Rockets;
 
-		internal static ConfigEntry<bool> SelfDamage;
+		internal static ModSetting<bool> SelfDamage;
 
-		internal static ConfigEntry<bool> LowerAfterShot;
+		internal static ModSetting<bool> LowerAfterShot;
 
-		internal static ConfigEntry<bool> DumpInfo;
+		internal static ModSetting<bool> DumpInfo;
 
 		public override void Load(ModContext ctx)
 		{
@@ -44,7 +42,7 @@ namespace HalfGripRpg
 			Rockets = ctx.Config.Bind("RPG", "Rockets", 3, "Spare rockets on the rack at the start.");
 			SelfDamage = ctx.Config.Bind("RPG", "SelfDamage", false, "The blast also hurts your own car if it goes off close to you.");
 			LowerAfterShot = ctx.Config.Bind("RPG", "LowerAfterShot", true, "Lower the launcher after a shot so you can reload straight away.");
-			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write extra detail about the RPG's parts to the BepInEx log. Useful when tuning.");
+			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write extra detail about the RPG's parts to the log. Useful when tuning.");
 
 			RpgItem.Register(ctx);
 			ctx.PatchAll();

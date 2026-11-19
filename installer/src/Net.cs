@@ -76,6 +76,12 @@ namespace HalfGripModsInstaller
 		/// <summary>Saves the file; false if it does not exist (404).</summary>
 		internal static bool Download(string url, string destination)
 		{
+			// --tools-dir: a release on this PC, not on GitHub.
+			if (Setup.ToolsDirOverride != "" && File.Exists(url))
+			{
+				File.Copy(url, destination, true);
+				return true;
+			}
 			using (HttpResponseMessage response = Send(url))
 			{
 				if (response.StatusCode == HttpStatusCode.NotFound)

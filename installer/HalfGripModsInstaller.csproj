@@ -9,7 +9,7 @@
 		<RootNamespace>HalfGripModsInstaller</RootNamespace>
 		<Product>Half Grip mods installer</Product>
 		<Authors>4l3x4nd3r</Authors>
-		<Version>1.0.0</Version>
+		<Version>1.1.0</Version>
 		<LangVersion>latest</LangVersion>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<ApplicationIcon>assets\installer.ico</ApplicationIcon>

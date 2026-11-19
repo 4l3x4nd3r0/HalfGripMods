@@ -1,6 +1,6 @@
 using System;
+using HalfGripTools;
 using System.Linq;
-using BepInEx.Configuration;
 
 namespace Multiplayer
 {
@@ -173,30 +173,30 @@ namespace Multiplayer
 	}
 
 	/// <summary>
-	/// The host's defaults for player-versus-player damage, as ordinary BepInEx config entries
-	/// (<c>BepInEx\config\halfgrip.multiplayer.cfg</c>). The host can change them in the lobby; the values the host has when a race starts are what everybody uses.
+	/// The host's defaults for player-versus-player damage, as ordinary config entries
+	/// (<c>config\multiplayer.cfg</c> in the data folder). The host can change them in the lobby; the values the host has when a race starts are what everybody uses.
 	/// </summary>
 	internal static class Pvp
 	{
-		private static ConfigEntry<float> gun;
-		private static ConfigEntry<float> explosion;
-		private static ConfigEntry<float> item;
-		private static ConfigEntry<float> ram;
-		private static ConfigEntry<float> aiGun;
-		private static ConfigEntry<bool> tires;
-		private static ConfigEntry<int> laps;
-		private static ConfigEntry<int> rounds;
-		private static ConfigEntry<int> ai;
-		private static ConfigEntry<int> wreck;
-		private static ConfigEntry<float> respawn;
-		private static ConfigEntry<int> aggression;
-		private static ConfigEntry<int> kit;
-		private static ConfigEntry<int> stage;
-		private static ConfigEntry<int> spread;
-		private static ConfigEntry<int> spreadSteps;
-		private static ConfigEntry<string> banned;
+		private static ModSetting<float> gun;
+		private static ModSetting<float> explosion;
+		private static ModSetting<float> item;
+		private static ModSetting<float> ram;
+		private static ModSetting<float> aiGun;
+		private static ModSetting<bool> tires;
+		private static ModSetting<int> laps;
+		private static ModSetting<int> rounds;
+		private static ModSetting<int> ai;
+		private static ModSetting<int> wreck;
+		private static ModSetting<float> respawn;
+		private static ModSetting<int> aggression;
+		private static ModSetting<int> kit;
+		private static ModSetting<int> stage;
+		private static ModSetting<int> spread;
+		private static ModSetting<int> spreadSteps;
+		private static ModSetting<string> banned;
 
-		internal static void Bind(ConfigFile config)
+		internal static void Bind(ModConfig config)
 		{
 			gun = config.Bind("PvP", "GunDamage", 0.5f, "Damage guns do to another player, as a share of what the same shot does to an AI car. 0.5 = half. The revolver's per-hit damage and hits-to-wreck are logged when a race starts.");
 			explosion = config.Bind("PvP", "ExplosionDamage", 0.5f, "Same, for explosions (rockets, blasts).");

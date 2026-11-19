@@ -1,5 +1,3 @@
-using BepInEx.Configuration;
-using BepInEx.Logging;
 using HalfGripTools;
 using UnityEngine;
 
@@ -7,37 +5,37 @@ namespace HalfGripBombRace
 {
 	public class Mod : HalfGripMod
 	{
-		internal static ManualLogSource Log;
+		internal static ModLog Log;
 
 		internal static ModContext Ctx;
 
-		internal static ConfigEntry<float> Chance;
+		internal static ModSetting<float> Chance;
 
-		internal static ConfigEntry<float> SpeedShare;
+		internal static ModSetting<float> SpeedShare;
 
-		internal static ConfigEntry<float> FuseSeconds;
+		internal static ModSetting<float> FuseSeconds;
 
-		internal static ConfigEntry<float> GraceSeconds;
+		internal static ModSetting<float> GraceSeconds;
 
-		internal static ConfigEntry<bool> RivalBombs;
+		internal static ModSetting<bool> RivalBombs;
 
-		internal static ConfigEntry<float> RivalSpeedShare;
+		internal static ModSetting<float> RivalSpeedShare;
 
-		internal static ConfigEntry<float> RivalFuseSeconds;
+		internal static ModSetting<float> RivalFuseSeconds;
 
-		internal static ConfigEntry<bool> EliminateLast;
+		internal static ModSetting<bool> EliminateLast;
 
-		internal static ConfigEntry<float> C4Width;
+		internal static ModSetting<float> C4Width;
 
-		internal static ConfigEntry<int> DriverSide;
+		internal static ModSetting<int> DriverSide;
 
-		internal static ConfigEntry<float> NudgeX;
+		internal static ModSetting<float> NudgeX;
 
-		internal static ConfigEntry<float> NudgeY;
+		internal static ModSetting<float> NudgeY;
 
-		internal static ConfigEntry<float> DashWidth;
+		internal static ModSetting<float> DashWidth;
 
-		internal static ConfigEntry<bool> DumpInfo;
+		internal static ModSetting<bool> DumpInfo;
 
 		public override void Load(ModContext ctx)
 		{
@@ -57,7 +55,7 @@ namespace HalfGripBombRace
 			DashWidth = ctx.Config.Bind("Dash Bomb", "Width", 0.42f, "Width of the bomb block on the dash, as a share of the steering wheel's width.");
 			NudgeX = ctx.Config.Bind("Dash Bomb", "NudgeX", 0f, "Moves the bomb block right (positive) or left, in steering wheel widths. It starts where the gear display would be if it were mirrored across the wheel.");
 			NudgeY = ctx.Config.Bind("Dash Bomb", "NudgeY", 0f, "Moves the bomb block up (positive) or down, in steering wheel widths.");
-			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", false, "Write extra detail (the map icons it copies, the fuse) to the BepInEx log.");
+			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", false, "Write extra detail (the map icons it copies, the fuse) to the log.");
 
 			ctx.PatchAll();
 
