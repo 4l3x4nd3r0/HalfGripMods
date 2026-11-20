@@ -71,9 +71,17 @@ namespace TempleOfDrift
 			BreakSpeedKept = ctx.Config.Bind("Guardrail", "BreakSpeedKept", 0.6f, "Share of its speed a car keeps when it breaks through the guardrail (the game's own tree keeps 0.6, so a break costs about what felling a tree does), plus crash damage like the tree's.");
 			GlanceAngle = ctx.Config.Bind("Guardrail", "GlanceAngle", 12f, "Under this angle (degrees) between the car's path and the guardrail it only scrapes along it, at any speed: no bend, no loss.");
 			BendMinSpeed = ctx.Config.Bind("Guardrail", "BendMinSpeed", 15f, "The least speed into the guardrail (the part of the speed that points at it, as the dash shows it) that bends it. Speed into the rail is the speed times the sine of the angle.");
-			RailBounce = ctx.Config.Bind("Guardrail", "Bounce", 0.25f, "How much of the speed into a bending rail comes back out (0 to 1): a soft push back instead of a dead wall.");
+			RailBounce = ctx.Config.Bind("Guardrail", "Bounce", 0.05f, "How much of the speed into a bending rail comes back out (0 to 1): a soft push back instead of a dead wall.");
 			BreakSpeed = ctx.Config.Bind("Guardrail", "BreakSpeed", 120f, "Speed into the guardrail (as the dash shows it) from which it breaks, with crash damage. Below it the rail holds and bends.");
 			BendSpeedLoss = ctx.Config.Bind("Guardrail", "BendSpeedLoss", 5f, "Speed a bending hit costs, in dash units.");
+			// A config file keeps an old value when a default changes: bring the retuned rail numbers up to date once.
+			ModSetting<int> railVersion = ctx.Config.Bind("Guardrail", "ConfigVersion", 0, "Internal: which rail defaults this file has been brought up to.");
+			if (railVersion.Value < 2)
+			{
+				RailBounce.Value = (float)RailBounce.DefaultValue;
+				railVersion.Value = 2;
+				ctx.Config.Save();
+			}
 			LogRailHits = ctx.Config.Bind("Debug", "LogRailHits", false, "Write a line to the log for every guardrail hit: the speed into the rail, what it did and the speed before and after.");
 			CaveLights = ctx.Config.Bind("Cave", "Lights", 14, "Faint lights along the cave (glowing fungus and a shaft of daylight). Lower is cheaper. 0 leaves the cave pitch dark.");
 			TreeCount = ctx.Config.Bind("Scenery", "Trees", 800, "Japanese trees round the roads (cedar, cherry, maple, pine, bamboo). Lower is cheaper.");

@@ -216,7 +216,7 @@ namespace TempleOfDrift
 		/// </summary>
 		private static void BentPiece(Batch steel, Batch posts, RailPiece p, Quaternion rot, float beam, float b)
 		{
-			float bow = b * 1.1f;
+			float bow = b * 3.4f;
 			BentBeam(steel, p, 0.85f, beam, bow);
 			BentBeam(steel, p, 1.6f, beam, bow);
 			Vector3 axis = Vector3.Cross(Vector3.up, p.Out);
@@ -227,7 +227,7 @@ namespace TempleOfDrift
 				{
 					foot += p.Out * bow;
 				}
-				Quaternion lean = Quaternion.AngleAxis(b * (k == 0 ? 20f : 8f), axis);
+				Quaternion lean = Quaternion.AngleAxis(b * (k == 0 ? 32f : 14f), axis);
 				Vector3 centre = foot + lean * (rot * new Vector3(0f, -0.45f, 0f));
 				posts.Box(centre, new Vector3(0.18f, 5.1f, 0.18f), lean * rot, 4f);
 			}
@@ -473,6 +473,10 @@ namespace TempleOfDrift
 				{
 					AddBend(touched[n], verdict.BendAmount, false);
 				}
+				for (int n = 0; n < touched.Count; n++)
+				{
+					BendBeside(touched[n], verdict.BendAmount);
+				}
 				v = GuardrailRules.AfterBend(car, v, tuning);
 			}
 			if (shift.sqrMagnitude > 1e-8f)
@@ -503,6 +507,23 @@ namespace TempleOfDrift
 				}
 			}
 			return best;
+		}
+
+		/// <summary>A bend spreads along the rail: the two pieces either side bow half as much and then a quarter as much, so the dent has a shape.</summary>
+		private void BendBeside(int piece, float amount)
+		{
+			for (int dir = 0; dir < 2; dir++)
+			{
+				int n = dir == 0 ? pieces[piece].Prev : pieces[piece].Next;
+				for (int depth = 0; depth < 2 && n >= 0; depth++)
+				{
+					if (!broken[n])
+					{
+						AddBend(n, amount * (depth == 0 ? 0.55f : 0.28f), true);
+					}
+					n = dir == 0 ? pieces[n].Prev : pieces[n].Next;
+				}
+			}
 		}
 
 		/// <summary>The two pieces either side of a gap are bent, the nearer one more.</summary>
