@@ -37,7 +37,6 @@ namespace Multiplayer
 				SaveSandbox.ReadOnly = true; // a test copy of the game must never write the real save
 			}
 			ctx.PatchAll();
-			Tx.Merge(Loc.Language); // the game may have built its text table before this patch existed
 			runner = new GameObject("MultiplayerRunner");
 			Object.DontDestroyOnLoad(runner);
 			runner.AddComponent<Runner>();

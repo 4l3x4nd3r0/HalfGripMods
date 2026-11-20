@@ -1,3 +1,4 @@
+using HalfGripTools.Meshes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -217,7 +218,7 @@ namespace HalfGripHighway
 			}
 			Mod.Log.LogInfo("Highway built: " + meshes + " meshes, " + triangles + " triangles, lap " + route.Length.ToString("0") + " m");
 
-			TreeSource.Capture();
+			TreeSource.Capture(Mod.Log);
 			int props = BuildProps(builder.Props, layer, source);
 			int containers = Containers.Build(builder.Containers, layer, source, root.transform);
 			int trees = BuildTrees(builder.Trees, layer, source);

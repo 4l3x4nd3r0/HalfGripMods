@@ -1,3 +1,4 @@
+using HalfGripTools.Meshes;
 ﻿using HalfGripTools;
 using UnityEngine;
 
@@ -69,10 +70,10 @@ namespace HalfGripHighway
 				}
 			};
 			ctx.Maps.Register(Info);
-			TreeSource.Capture();
+			TreeSource.Capture(Mod.Log);
 			ctx.OnSceneLoaded(scene =>
 			{
-				TreeSource.Capture();
+				TreeSource.Capture(Mod.Log);
 				HighwayScene.OnSceneLoaded(scene);
 			});
 			ctx.PatchAll();

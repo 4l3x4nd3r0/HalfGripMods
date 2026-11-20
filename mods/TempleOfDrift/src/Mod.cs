@@ -1,3 +1,4 @@
+using HalfGripTools.Meshes;
 using HalfGripTools;
 using UnityEngine;
 
@@ -148,7 +149,7 @@ namespace TempleOfDrift
 					}
 					if (PlayMusic.Value)
 					{
-						AudioClip clip = Music.Load(ctx.Folder);
+						AudioClip clip = ctx.Audio.LoadWav("audio/temple_of_drift.wav");
 						if (clip != null)
 						{
 							map.musicTrack = clip;
@@ -157,10 +158,10 @@ namespace TempleOfDrift
 				}
 			};
 			ctx.Maps.Register(Info);
-			TreeSource.Capture();
+			TreeSource.Capture(Mod.Log, 1);
 			ctx.OnSceneLoaded(scene =>
 			{
-				TreeSource.Capture();
+				TreeSource.Capture(Mod.Log, 1);
 				SceneBuilder.OnSceneLoaded(scene);
 			});
 			ctx.PatchAll();
