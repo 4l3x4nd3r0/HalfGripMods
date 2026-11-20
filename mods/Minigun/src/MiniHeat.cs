@@ -1,4 +1,4 @@
-using HarmonyLib;
+using HalfGripTools;
 using UnityEngine;
 
 namespace HalfGripMinigun
@@ -17,10 +17,6 @@ namespace HalfGripMinigun
 
 		// How soon after the last bullet the gun starts to cool.
 		private const float CoolDelay = 0.1f;
-
-		private static readonly System.Reflection.MethodInfo FireShot = AccessTools.Method(typeof(Gun), "FireShot");
-
-		private static readonly System.Reflection.MethodInfo ExitAimMode = AccessTools.Method(typeof(Gun), "ExitAimMode");
 
 
 		private static AudioClip whir;
@@ -127,7 +123,7 @@ namespace HalfGripMinigun
 				spinStart = now;
 			}
 			lastPull = now;
-			if (Jammed || Ceasefire || FireShot == null)
+			if (Jammed || Ceasefire)
 			{
 				return;
 			}
@@ -138,7 +134,7 @@ namespace HalfGripMinigun
 			float interval = 1f / Mathf.Max(1f, Mod.RoundsPerSecond.Value);
 			// Keep the average rate even when a frame is longer than a bullet's interval.
 			nextShot = Mathf.Max(nextShot + interval, now - interval);
-			FireShot.Invoke(gun, null);
+			GunBehaviour.CallGun(gun, "FireShot");
 			lastBullet = now;
 			heat += interval;
 			if (heat >= Capacity)
@@ -198,9 +194,9 @@ namespace HalfGripMinigun
 			{
 				wasLocked = locked;
 				SetGrabbable(!locked);
-				if (locked && gun.grabbed && ExitAimMode != null)
+				if (locked && gun.grabbed)
 				{
-					ExitAimMode.Invoke(gun, null);
+					GunBehaviour.CallGun(gun, "ExitAimMode");
 				}
 			}
 			ShowPadlock(Jammed);

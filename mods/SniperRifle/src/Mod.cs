@@ -78,6 +78,7 @@ namespace HalfGripSniper
 
 			RifleItem.Register(ctx);
 			// One patch that no longer fits the game is logged and skipped, instead of taking the whole mod down with it.
+			ctx.Guns.Add(new SniperBehaviour());
 			ctx.PatchAll();
 		}
 

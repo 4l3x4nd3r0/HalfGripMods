@@ -1,34 +1,7 @@
-using HarmonyLib;
 using UnityEngine;
 
 namespace HalfGripInfinitePlayground
 {
-	// The wheels cast against every layer except Ignore Raycast (CarControllerNew.CastGround), and a collider with no HandlingModifier
-	// gives plain grip, so a box collider is drivable road. Hold R still resets to the playground's own roads.
-	[HarmonyPatch(typeof(Playground), "Awake")]
-	internal static class AddFloor
-	{
-		private static void Postfix(Playground __instance)
-		{
-			if (!Mod.FloorEnabled.Value)
-			{
-				return;
-			}
-			// The car is more than 1000 m from the path soon after leaving, which would nag "Hold R to reset".
-			PlayerResetLogic.noHints = true;
-			__instance.gameObject.AddComponent<EndlessFloor>();
-		}
-	}
-
-	[HarmonyPatch(typeof(Playground), "OnDisable")]
-	internal static class RemoveHints
-	{
-		private static void Postfix()
-		{
-			PlayerResetLogic.noHints = false;
-		}
-	}
-
 	// A static floor that follows the car in x/z and never moves in y. It snaps to whole checker pairs so the pattern stays fixed in the world.
 	// Coordinates grow with distance, but even 60 km out float precision is a few millimetres, fine for a speed test.
 	internal class EndlessFloor : MonoBehaviour

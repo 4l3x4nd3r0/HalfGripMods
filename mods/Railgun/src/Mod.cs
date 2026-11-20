@@ -73,7 +73,7 @@ namespace HalfGripRailgun
 			}
 
 			RailgunItem.Register(ctx);
-			ctx.PatchAll();
+			ctx.Guns.Add(new RailgunBehaviour());
 		}
 
 		public override void Unload()

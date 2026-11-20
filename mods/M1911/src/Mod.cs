@@ -33,7 +33,7 @@ namespace HalfGrip1911
 			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write every gun item and the SMG's sprite layout to the log. Useful when tuning.");
 
 			M1911Item.Register(ctx);
-			ctx.PatchAll();
+			ctx.Guns.Add(new M1911Behaviour());
 		}
 	}
 }

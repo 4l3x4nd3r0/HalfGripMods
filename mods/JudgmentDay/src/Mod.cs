@@ -89,6 +89,7 @@ namespace JudgmentDay
 			}
 
 			JudgmentDayItem.Register(ctx);
+			ctx.Guns.Add(new JudgmentDayBehaviour());
 			ctx.PatchAll();
 		}
 

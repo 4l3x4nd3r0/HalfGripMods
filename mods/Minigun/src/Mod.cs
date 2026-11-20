@@ -86,6 +86,7 @@ namespace HalfGripMinigun
 			}
 
 			MinigunItem.Register(ctx);
+			ctx.Guns.Add(new MinigunBehaviour());
 			ctx.PatchAll();
 		}
 

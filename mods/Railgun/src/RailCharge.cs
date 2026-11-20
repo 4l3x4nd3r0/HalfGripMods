@@ -1,5 +1,5 @@
+using HalfGripTools;
 using System.Collections.Generic;
-using HarmonyLib;
 using UnityEngine;
 
 namespace HalfGripRailgun
@@ -15,7 +15,6 @@ namespace HalfGripRailgun
 	{
 		private static readonly Color BarColour = new Color(0.45f, 0.78f, 1f, 1f);
 
-		private static readonly System.Reflection.MethodInfo AimPoint = AccessTools.PropertyGetter(typeof(Gun), "AimScreenPoint");
 
 		// The slug shotgun's sprites, read from the game's race scene, and the railgun art that stands in for each. Every file is the
 		// size of the sprite it replaces. The "cover" layer is drawn over the pump and stays put with the body: the lit coils and the arcs
@@ -384,11 +383,10 @@ namespace HalfGripRailgun
 
 		private void OnGUI()
 		{
-			if (!Mod.ScreenBar.Value || gun == null || !gun.grabbed || AimPoint == null)
+			if (!Mod.ScreenBar.Value || gun == null || !gun.grabbed || !GunBehaviour.TryGetAimScreenPoint(gun, out Vector2 point))
 			{
 				return;
 			}
-			Vector2 point = (Vector2)AimPoint.Invoke(gun, null);
 			float cx = point.x;
 			float cy = Screen.height - point.y;
 			float width = Screen.height * 0.12f;

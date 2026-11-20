@@ -1,3 +1,4 @@
+using HalfGripTools;
 using System.Collections;
 using System.Reflection;
 using HarmonyLib;
@@ -13,10 +14,6 @@ namespace JudgmentDay
 	/// </summary>
 	internal class SpinCock : MonoBehaviour
 	{
-		private static readonly MethodInfo AimGetter = AccessTools.PropertyGetter(typeof(Gun), "AimScreenPoint");
-
-		private static readonly MethodInfo ResetPendulum = AccessTools.Method(typeof(Gun), "ResetPendulum");
-
 		private NPumpActionGun gun;
 
 		private MeshRenderer heldBody;
@@ -96,10 +93,6 @@ namespace JudgmentDay
 			Art.HeldParts parts = Art.ReskinHeldModel(owner);
 			heldBody = parts != null ? parts.Body : null;
 			heldLever = parts != null ? parts.Lever : null;
-			if (AimGetter == null)
-			{
-				Mod.Log.LogWarning("Gun.AimScreenPoint was not found: the spin-cock reads the mouse position instead");
-			}
 			if (Mod.DumpInfo.Value)
 			{
 				Mod.Log.LogInfo($"Judgment Day set up on '{owner.name}': capacity={owner.capacity}, bullets={owner.bullets}, spin trigger {owner.spinRotationsToTrigger} turns in {owner.spinDetectionWindow} s (the game's own twirl); shells per pickup {oldShellsPerPickup} -> {(shells != null ? shells.entitiesPerMagazine : 0)}");
@@ -124,11 +117,7 @@ namespace JudgmentDay
 
 		private Vector2 AimPoint()
 		{
-			if (AimGetter != null)
-			{
-				return (Vector2)AimGetter.Invoke(gun, null);
-			}
-			return Input.mousePosition;
+			return GunBehaviour.TryGetAimScreenPoint(gun, out Vector2 point) ? point : (Vector2)Input.mousePosition;
 		}
 
 		// The cursor's total turning so far, in radians (the angle its direction of travel has turned through, counted signed).
@@ -365,7 +354,7 @@ namespace JudgmentDay
 		// Wipes the game's spin tracker (turns counted, twirl on or off), and our mark with it.
 		private void ForgetSpin()
 		{
-			ResetPendulum?.Invoke(gun, null);
+			GunBehaviour.CallGun(gun, "ResetPendulum");
 			ResetRun(turned);
 		}
 

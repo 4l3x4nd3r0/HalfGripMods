@@ -45,7 +45,7 @@ namespace HalfGripRpg
 			DumpInfo = ctx.Config.Bind("Debug", "DumpInfo", true, "Write extra detail about the RPG's parts to the log. Useful when tuning.");
 
 			RpgItem.Register(ctx);
-			ctx.PatchAll();
+			ctx.Guns.Add(new RpgBehaviour());
 		}
 	}
 }
