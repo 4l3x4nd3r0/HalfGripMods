@@ -1,3 +1,4 @@
+using HalfGripTools;
 using HalfGripTools.Meshes;
 using System.Collections.Generic;
 using UnityEngine;
@@ -380,15 +381,28 @@ namespace TempleOfDrift
 			}
 			Vector3 v = velocity;
 			hits = ResolveRails(car, body, centre, forward, right, ref v);
-			// A rail that gave way takes the same share of the car's speed for every piece, so three hits are heavy and five or six all but
-			// stop it; pieces broken in the same step count in full for the first two and a third as much after that (a broadside crossing
-			// is one barrier).
-			if (hits > 0 || v != velocity)
+			if (v != velocity)
 			{
-				float keep = 1f - Mathf.Clamp01(Mod.SpeedLossPerPiece.Value);
-				float counted = hits <= 2 ? hits : 2f + 0.35f * (hits - 2);
-				body.linearVelocity = v * Mathf.Pow(keep, counted);
+				body.linearVelocity = v;
 			}
+		}
+
+		private static GuardrailTuning tuning;
+
+		/// <summary>The guardrail rule's numbers from this mod's settings (see <c>GuardrailRules</c> in HalfGripTools).</summary>
+		private static GuardrailTuning Tuning()
+		{
+			if (tuning == null)
+			{
+				tuning = new GuardrailTuning();
+			}
+			tuning.GlanceAngle = Mod.GlanceAngle.Value;
+			tuning.BendMinInto = Mod.BendMinSpeed.Value;
+			tuning.BreakInto = Mod.BreakSpeed.Value;
+			tuning.BendLossDash = Mod.BendSpeedLoss.Value;
+			tuning.Bounce = Mod.RailBounce.Value;
+			tuning.BreakKeep = Mod.BreakSpeedKept.Value;
+			return tuning;
 		}
 
 		/// <summary>The number on the dash is the car's speed in game units a second times this (<c>SpeedDashboard.SpeedToDisplay</c>).</summary>
@@ -401,23 +415,23 @@ namespace TempleOfDrift
 		}
 
 		/// <summary>
-		/// What the pieces the car touches do, by how fast it is going into them (the dash's number, along the rail's normal):
-		/// under ContainSpeed the rail holds like a wall and the car slides along it, with no crash damage (nothing here is a collider);
-		/// up to BreakSpeed the same, and the touched pieces bend and the car loses some speed; from BreakSpeed the touched pieces break
-		/// and the two on each side of the gap are bent. Returns how many pieces broke.
+		/// What the touched pieces do with a hit, from the car's speed and the angle it meets the rail at (<c>GuardrailRules</c> in HalfGripTools):
+		/// under GlanceAngle the car slides along the rail untouched; above it, and into the rail faster than BendMinSpeed, the rail bends and the
+		/// car loses a few dash units; from BreakSpeed (speed times the sine of the angle) the pieces break, with the two either side bent, and the
+		/// car loses speed and takes crash damage like it does for a tree. Returns how many pieces broke.
 		/// </summary>
 		private int ResolveRails(CarControllerNew car, Rigidbody body, Vector3 centre, Vector3 forward, Vector3 right, ref Vector3 v)
 		{
-			float contain = Mathf.Max(1f, Mod.ContainSpeed.Value);
-			float limit = Mathf.Max(contain + 1f, Mod.BreakSpeed.Value);
+			GuardrailTuning tuning = Tuning();
 			Vector3 v0 = v;
-			float impact = 0f;
+			float into = 0f;
 			for (int n = 0; n < touched.Count; n++)
 			{
-				impact = Mathf.Max(impact, Vector3.Dot(v0, Toward(pieces[touched[n]], centre)) * Dash);
+				into = Mathf.Max(into, Vector3.Dot(v0, Toward(pieces[touched[n]], centre)) * Dash);
 			}
+			GuardrailVerdict verdict = GuardrailRules.Judge(v0, into, tuning);
 
-			if (impact >= limit)
+			if (verdict.Outcome == GuardrailOutcome.Break)
 			{
 				for (int n = 0; n < touched.Count; n++)
 				{
@@ -430,19 +444,22 @@ namespace TempleOfDrift
 				{
 					BendAround(touched[n]);
 				}
-				LogHit(car, impact, "break", touched.Count, v0, v0);
+				v = GuardrailRules.AfterBreak(car, v0, into, tuning, out float damage);
+				LogHit(car, into, "break at " + verdict.Angle.ToString("0") + " deg, " + damage.ToString("0") + " damage", touched.Count, v0, v);
 				return touched.Count;
 			}
 
+			// The rail holds the car in: the speed into it is taken away, all of it for a scrape, all but a soft push back for a bend.
+			float bounce = verdict.Outcome == GuardrailOutcome.Bend ? tuning.Bounce : 0f;
 			Vector3 shift = Vector3.zero;
 			for (int n = 0; n < touched.Count; n++)
 			{
 				RailPiece p = pieces[touched[n]];
 				Vector3 toward = Toward(p, centre);
-				float into = Vector3.Dot(v, toward);
-				if (into > 0f)
+				float closing = Vector3.Dot(v, toward);
+				if (closing > 0f)
 				{
-					v -= toward * into;
+					v -= toward * closing * (1f + bounce);
 				}
 				float pen = Penetration(p, centre + shift, forward, right, toward);
 				if (pen > 0f)
@@ -450,22 +467,21 @@ namespace TempleOfDrift
 					shift -= toward * (pen + 0.05f);
 				}
 			}
-			if (impact > contain)
+			if (verdict.Outcome == GuardrailOutcome.Bend)
 			{
-				float t = Mathf.Clamp01((impact - contain) / (limit - contain));
 				for (int n = 0; n < touched.Count; n++)
 				{
-					AddBend(touched[n], 0.25f + 0.5f * t, false);
+					AddBend(touched[n], verdict.BendAmount, false);
 				}
-				v *= 1f - Mathf.Clamp01(Mod.BendSpeedLoss.Value) * t;
+				v = GuardrailRules.AfterBend(car, v, tuning);
 			}
 			if (shift.sqrMagnitude > 1e-8f)
 			{
 				body.position = body.position + Vector3.ClampMagnitude(shift, 2.5f);
 			}
-			if (impact > 5f)
+			if (into > 5f)
 			{
-				LogHit(car, impact, impact > contain ? "bend" : "hold", touched.Count, v0, v);
+				LogHit(car, into, (verdict.Outcome == GuardrailOutcome.Bend ? "bend" : "slide") + " at " + verdict.Angle.ToString("0") + " deg", touched.Count, v0, v);
 			}
 			return 0;
 		}
