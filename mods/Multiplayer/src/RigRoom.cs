@@ -280,7 +280,9 @@ namespace Multiplayer
 				{
 					yield return null;
 				}
-				yield return Wait(5f);
+				// HALFGRIPTOOLS_RIGHOLD: seconds to stay on each map (the Map Maker's screenshot walk needs about 20).
+				float hold;
+				yield return Wait(float.TryParse(Environment.GetEnvironmentVariable("HALFGRIPTOOLS_RIGHOLD"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out hold) ? hold : 5f);
 				TrackManager tm = UnityEngine.Object.FindFirstObjectByType<TrackManager>();
 				if (tm == null)
 				{

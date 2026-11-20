@@ -74,6 +74,7 @@ namespace HalfGripHighway
 				}
 			};
 			ctx.Maps.Register(Info);
+			MapPieces.Register(ctx);
 			TreeSource.Capture(Mod.Log);
 			ctx.OnSceneLoaded(scene =>
 			{
