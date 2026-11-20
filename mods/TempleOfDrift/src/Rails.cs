@@ -399,6 +399,8 @@ namespace TempleOfDrift
 			tuning.GlanceAngle = Mod.GlanceAngle.Value;
 			tuning.BendMinInto = Mod.BendMinSpeed.Value;
 			tuning.BreakInto = Mod.BreakSpeed.Value;
+			tuning.BreakAngle = Mod.BreakAngle.Value;
+			tuning.BreakAngleSpeed = Mod.BreakAngleSpeed.Value;
 			tuning.BendLossDash = Mod.BendSpeedLoss.Value;
 			tuning.Bounce = Mod.RailBounce.Value;
 			tuning.BreakKeep = Mod.BreakSpeedKept.Value;

@@ -36,6 +36,8 @@ namespace TempleOfDrift
 		internal static ModSetting<float> GlanceAngle;
 		internal static ModSetting<float> BendMinSpeed;
 		internal static ModSetting<float> RailBounce;
+		internal static ModSetting<float> BreakAngle;
+		internal static ModSetting<float> BreakAngleSpeed;
 		internal static ModSetting<float> BreakSpeed;
 		internal static ModSetting<float> BendSpeedLoss;
 		internal static ModSetting<bool> LogRailHits;
@@ -71,6 +73,8 @@ namespace TempleOfDrift
 			BreakSpeedKept = ctx.Config.Bind("Guardrail", "BreakSpeedKept", 0.6f, "Share of its speed a car keeps when it breaks through the guardrail (the game's own tree keeps 0.6, so a break costs about what felling a tree does), plus crash damage like the tree's.");
 			GlanceAngle = ctx.Config.Bind("Guardrail", "GlanceAngle", 12f, "Under this angle (degrees) between the car's path and the guardrail it only scrapes along it, at any speed: no bend, no loss.");
 			BendMinSpeed = ctx.Config.Bind("Guardrail", "BendMinSpeed", 15f, "The least speed into the guardrail (the part of the speed that points at it, as the dash shows it) that bends it. Speed into the rail is the speed times the sine of the angle.");
+			BreakAngle = ctx.Config.Bind("Guardrail", "BreakAngle", 40f, "A hit at least this steep (degrees) breaks the guardrail when the car is also going BreakAngleSpeed or more.");
+			BreakAngleSpeed = ctx.Config.Bind("Guardrail", "BreakAngleSpeed", 100f, "The dash speed that, at BreakAngle or steeper, is enough to break the guardrail.");
 			RailBounce = ctx.Config.Bind("Guardrail", "Bounce", 0.05f, "How much of the speed into a bending rail comes back out (0 to 1): a soft push back instead of a dead wall.");
 			BreakSpeed = ctx.Config.Bind("Guardrail", "BreakSpeed", 120f, "Speed into the guardrail (as the dash shows it) from which it breaks, with crash damage. Below it the rail holds and bends.");
 			BendSpeedLoss = ctx.Config.Bind("Guardrail", "BendSpeedLoss", 5f, "Speed a bending hit costs, in dash units.");
