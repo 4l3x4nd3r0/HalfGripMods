@@ -76,7 +76,9 @@ namespace Multiplayer
 			canvas = Ui.Overlay("MpGarageCanvas", 50);
 			canvas.transform.SetParent(transform, false);
 			Ui.Label(canvas.transform, "MULTIPLAYER GARAGE", 44f, Color.white, TextAlignmentOptions.TopLeft, new Vector2(0f, 1f), new Vector2(30f, -24f), new Vector2(900f, 60f));
-			Ui.Label(canvas.transform, "Every item is yours here. Fit your car, then press ESC to go back.", 28f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0f, 1f), new Vector2(30f, -76f), new Vector2(1000f, 44f));
+			Ui.Label(canvas.transform, "Every item is yours here. Fit your car, then press BACK (or ESC).", 28f, Ui.Soft, TextAlignmentOptions.TopLeft, new Vector2(0f, 1f), new Vector2(30f, -76f), new Vector2(1000f, 44f));
+			// The same way out as ESC: back to the MULTIPLAYER screen (or RACE ROOMS), with the loadout kept.
+			Ui.RedButton(canvas.transform, "BACK", 6.5f, new Vector2(0f, 0f), new Vector2(30f, 30f), () => Garage.ExitSolo());
 		}
 	}
 }
