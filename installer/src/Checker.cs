@@ -33,6 +33,12 @@ namespace HalfGripModsInstaller
 
 		internal string Tools = "";
 
+		/// <summary>The mod.json "apiVersion" as written (empty when absent): a mod with code must say 2.0 or newer to run on HalfGripTools 2.0.</summary>
+		internal string Api = "";
+
+		/// <summary>The mod has C# source (src\*.cs).</summary>
+		internal bool HasCode;
+
 		/// <summary>The mod's picture: its mod.json "icon", else a sprites\*icon*.png. Null if it has none.</summary>
 		internal string IconPath;
 
@@ -322,6 +328,7 @@ namespace HalfGripModsInstaller
 				mod.GameVersion = MiniJson.String(obj, "gameVersion");
 				// "apiVersion" and "tools" mean the same; the newer one counts.
 				string api = MiniJson.String(obj, "apiVersion");
+				mod.Api = api;
 				string oldest = MiniJson.String(obj, "tools");
 				mod.Tools = Version.TryParse(api, out Version apiVersion) && (!Version.TryParse(oldest, out Version toolsVersion) || apiVersion > toolsVersion) ? api : oldest;
 				mod.Requires = MiniJson.List(obj, "requires").OfType<string>().ToArray();
@@ -343,6 +350,7 @@ namespace HalfGripModsInstaller
 				mod.Problem = "it contains a program file (" + Path.GetFileName(compiled) + "). Mods here must be readable source only.";
 				return mod;
 			}
+			mod.HasCode = Directory.Exists(Path.Combine(dir, "src")) && Directory.GetFiles(Path.Combine(dir, "src"), "*.cs", SearchOption.AllDirectories).Length > 0;
 			bool hasContent = (Directory.Exists(Path.Combine(dir, "src")) && Directory.GetFiles(Path.Combine(dir, "src"), "*.cs", SearchOption.AllDirectories).Length > 0)
 				|| (Directory.Exists(Path.Combine(dir, "items")) && Directory.GetFiles(Path.Combine(dir, "items"), "*.json").Length > 0);
 			if (!hasContent)
@@ -410,6 +418,11 @@ namespace HalfGripModsInstaller
 				else if (result.Tools != null && Version.TryParse(mod.Tools, out Version needed) && result.Tools.Number != null && needed > result.Tools.Number)
 				{
 					mod.Problem = "it needs HalfGripTools " + mod.Tools + " or newer, and the newest is " + result.Tools.Tag + ".";
+				}
+				// HalfGripTools 2.0 no longer runs mods written for 1.x (BepInEx types). Code that does not say "apiVersion": "2.0.0" or newer is such a mod: say so instead of installing a mod that cannot load.
+				else if (result.Tools != null && result.Tools.Number != null && result.Tools.Number.Major >= 2 && mod.HasCode && !(Version.TryParse(mod.Api, out Version declared) && declared.Major >= 2))
+				{
+					mod.Problem = "it was written for HalfGripTools 1.x, which 2.0 no longer runs. Its author has to port it to 2.0 (the guide is in HalfGripTools' docs, 'Porting to 2.0').";
 				}
 			}
 
