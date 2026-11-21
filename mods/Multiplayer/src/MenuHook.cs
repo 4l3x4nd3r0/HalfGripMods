@@ -65,6 +65,7 @@ namespace Multiplayer
 			MainMenu found = Object.FindFirstObjectByType<MainMenu>();
 			if (found == menu)
 			{
+				MenuBeside.Tick();
 				Settle();
 				return;
 			}
@@ -75,8 +76,53 @@ namespace Multiplayer
 			}
 		}
 
+#if HALFGRIP_OFFICIAL_NET
+		/// <summary>The game has a MULTIPLAYER screen of its own: it is left alone, and this mod's rooms get a RACE ROOMS button (MenuBeside).</summary>
+		private const bool Beside = true;
+#else
+		private const bool Beside = false;
+#endif
+
+		/// <summary>Opens this mod's screen. Where the game has a lobby screen of its own the menu's slot is lent to ours first.</summary>
+		internal static void OpenScreen(MainMenu target)
+		{
+			if (Beside)
+			{
+				MenuBeside.Use(target);
+			}
+			target.ShowMultiplayer();
+		}
+
+		private static void InstallBeside(MainMenu found)
+		{
+			menu = found;
+			MenuBeside.Install(found);
+			if (!MenuBeside.Installed)
+			{
+				ScreenReady = true;
+				return;
+			}
+			if (Room.Active || Garage.ReturnToScreen)
+			{
+				Garage.ReturnToScreen = false;
+				ShowAtOnce(menu);
+				settleUntil = Time.frameCount + 8;
+			}
+			else
+			{
+				ScreenReady = true;
+			}
+			// Invites to this mod's rooms are told apart from the game's own by the room data (Backend); the invite at game start is the game's to read.
+			Room.EnsureBackend(true);
+		}
+
 		private static void Install(MainMenu found)
 		{
+			if (Beside)
+			{
+				InstallBeside(found);
+				return;
+			}
 			menu = found;
 			button = FindButton();
 			if (button == null)
@@ -117,7 +163,7 @@ namespace Multiplayer
 		{
 			if (Traverse.Create(target).Field("view").GetValue<MainMenu.View>() != MainMenu.View.Multiplayer)
 			{
-				target.ShowMultiplayer();
+				OpenScreen(target);
 			}
 			Animator animator = Traverse.Create(target).Field("animator").GetValue<Animator>();
 			if (animator != null)
@@ -130,6 +176,7 @@ namespace Multiplayer
 		/// <summary>Puts the menu back as the game made it. Runs when mods switch off and before each rebuild.</summary>
 		internal static void Remove()
 		{
+			MenuBeside.Remove();
 			if (button != null)
 			{
 				if (clicked != null)

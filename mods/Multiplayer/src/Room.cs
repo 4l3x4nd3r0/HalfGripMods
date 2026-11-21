@@ -87,7 +87,7 @@ namespace Multiplayer
 			get
 			{
 				int most = RaceSettings.CustomPlayers;
-				foreach (HalfGripTools.NetMode mode in HalfGripTools.Net.Modes)
+				foreach (HalfGripTools.NetMode mode in HalfGripTools.NetRoom.Modes)
 				{
 					most = Math.Max(most, mode.MaxPlayers);
 				}

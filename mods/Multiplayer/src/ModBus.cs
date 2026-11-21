@@ -16,14 +16,14 @@ namespace Multiplayer
 
 		internal static void Install()
 		{
-			Net.SetTransport(new ModBus());
+			NetRoom.SetTransport(new ModBus());
 			Room.Changed += Push;
 		}
 
 		internal static void Remove()
 		{
 			Room.Changed -= Push;
-			Net.SetTransport(null);
+			NetRoom.SetTransport(null);
 		}
 
 		/// <summary>Twice a second, in case something changed without a notice (a player's name, say).</summary>
@@ -43,12 +43,12 @@ namespace Multiplayer
 			{
 				if (!Room.Active)
 				{
-					Net.SetRoom(false, false, 0UL, 0UL, null, NetPhase.None, null);
+					NetRoom.SetRoom(false, false, 0UL, 0UL, null, NetPhase.None, null);
 					return;
 				}
 				List<NetPlayer> players = Room.Peers.Where(p => !p.Gone).Select(p => new NetPlayer { Id = p.Id, Name = p.Name, IsHost = p.Id == Room.HostId, IsLocal = p.Local }).ToList();
 				RaceSettings mode = Room.Race ?? Room.Settings;
-				Net.SetRoom(true, Room.IsHost, Room.LocalId, Room.HostId, players, Map(Room.Phase), mode == null ? "race" : mode.PublicModeId());
+				NetRoom.SetRoom(true, Room.IsHost, Room.LocalId, Room.HostId, players, Map(Room.Phase), mode == null ? "race" : mode.PublicModeId());
 			}
 			catch (Exception e)
 			{
@@ -75,7 +75,7 @@ namespace Multiplayer
 				return;
 			}
 			W w = new W(Msg.ModData).Str(channel).Raw(data);
-			if (to == Net.Everyone)
+			if (to == NetRoom.Everyone)
 			{
 				Room.SendAll(w, reliable);
 			}
@@ -98,7 +98,7 @@ namespace Multiplayer
 		{
 			string channel = r.Str();
 			byte[] data = r.Raw();
-			Net.Deliver(channel, from, data);
+			NetRoom.Deliver(channel, from, data);
 		}
 	}
 }

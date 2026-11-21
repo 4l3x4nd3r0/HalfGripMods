@@ -70,10 +70,10 @@ namespace Multiplayer
 		/// <summary>The registered mode this room plays, or null.</summary>
 		internal HalfGripTools.NetMode ModDef
 		{
-			get { return Mode == ModeMod ? HalfGripTools.Net.Modes.FirstOrDefault(m => m.Id == ModeId) : null; }
+			get { return Mode == ModeMod ? HalfGripTools.NetRoom.Modes.FirstOrDefault(m => m.Id == ModeId) : null; }
 		}
 
-		/// <summary>The id the mods see (<c>HalfGripTools.Net.ModeId</c>): race, demolition, tournament, custom or the mod's own.</summary>
+		/// <summary>The id the mods see (<c>HalfGripTools.NetRoom.ModeId</c>): race, demolition, tournament, custom or the mod's own.</summary>
 		internal string PublicModeId()
 		{
 			return Mode == ModeMod ? ModeId : Mode == ModeDemolition ? "demolition" : Mode == ModeTournament ? "tournament" : Mode == ModeCustom ? "custom" : "race";

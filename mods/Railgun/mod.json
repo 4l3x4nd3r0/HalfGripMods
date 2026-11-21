@@ -5,6 +5,6 @@
   "author": "4l3x4nd3r",
   "description": "A Legendary Railgun that charges as you drive while it is aimed: 20 damage up to 90. Loaded with steel balls, one at a time.",
   "icon": "icon.png",
-  "gameVersion": "0.419",
+  "gameVersion": "0.419,0.420",
   "apiVersion": "2.0.0"
 }

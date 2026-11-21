@@ -92,7 +92,7 @@ namespace Multiplayer
 			MainMenu menu = UnityEngine.Object.FindFirstObjectByType<MainMenu>();
 			if (menu != null)
 			{
-				menu.ShowMultiplayer();
+				MenuHook.OpenScreen(menu);
 			}
 		}
 	}

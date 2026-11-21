@@ -80,12 +80,12 @@ namespace Multiplayer
 					got.Add(Encoding.UTF8.GetString(data));
 				}
 			});
-			HalfGripTools.Net.PlayerLeft += p => left = true;
+			HalfGripTools.NetRoom.PlayerLeft += p => left = true;
 		}
 
 		private static bool Send(string text, bool reliable)
 		{
-			return Mod.Ctx.Net.Send(Encoding.UTF8.GetBytes(text), HalfGripTools.Net.Everyone, reliable);
+			return Mod.Ctx.Net.Send(Encoding.UTF8.GetBytes(text), HalfGripTools.NetRoom.Everyone, reliable);
 		}
 
 		private static NetMode BusMode()
@@ -95,13 +95,13 @@ namespace Multiplayer
 
 		internal static IEnumerator BusHost()
 		{
-			RigScenarios.Check(HalfGripTools.Net.Available && HalfGripTools.Net.InRoom && HalfGripTools.Net.IsHost, "bus host: HalfGripTools.Net sees the room and the host role");
-			RigScenarios.Check(HalfGripTools.Net.LocalId == Room.LocalId && HalfGripTools.Net.HostId == Room.LocalId, "bus host: the ids are the room's");
-			RigScenarios.Check(HalfGripTools.Net.Players.Count == RigRoom.Players && HalfGripTools.Net.Players[0].IsHost, "bus host: the player list has everybody, the host first (" + HalfGripTools.Net.Players.Count + ")");
-			RigScenarios.Check(HalfGripTools.Net.Phase == NetPhase.Lobby && HalfGripTools.Net.ModeId == "race", "bus host: the phase is the lobby and the mode race");
+			RigScenarios.Check(HalfGripTools.NetRoom.Available && HalfGripTools.NetRoom.InRoom && HalfGripTools.NetRoom.IsHost, "bus host: HalfGripTools.Net sees the room and the host role");
+			RigScenarios.Check(HalfGripTools.NetRoom.LocalId == Room.LocalId && HalfGripTools.NetRoom.HostId == Room.LocalId, "bus host: the ids are the room's");
+			RigScenarios.Check(HalfGripTools.NetRoom.Players.Count == RigRoom.Players && HalfGripTools.NetRoom.Players[0].IsHost, "bus host: the player list has everybody, the host first (" + HalfGripTools.NetRoom.Players.Count + ")");
+			RigScenarios.Check(HalfGripTools.NetRoom.Phase == NetPhase.Lobby && HalfGripTools.NetRoom.ModeId == "race", "bus host: the phase is the lobby and the mode race");
 			Listen();
 			Mod.Ctx.Net.RegisterMode(BusMode());
-			RigScenarios.Check(HalfGripTools.Net.Modes.Any(m => m.Id == "rig.bus"), "bus host: the registered mode is listed");
+			RigScenarios.Check(HalfGripTools.NetRoom.Modes.Any(m => m.Id == "rig.bus"), "bus host: the registered mode is listed");
 			yield return RigScenarios.WaitSignal("busready", s => { }, 60f);
 
 			// the host picks the mode the way the MODE arrows do
@@ -110,12 +110,12 @@ namespace Multiplayer
 			Room.Settings.Laps = 5;
 			Room.BroadcastRoster();
 			RigScenarios.Check(Room.Cap == 8 && Room.Settings.MaxLaps == 7, "bus host: the room's cap and lap limit are the mode's (" + Room.Cap + ", " + Room.Settings.MaxLaps + ")");
-			yield return RigScenarios.WaitFor(() => HalfGripTools.Net.ModeId == "rig.bus", 10f, "bus host: mods are told the mode is rig.bus");
+			yield return RigScenarios.WaitFor(() => HalfGripTools.NetRoom.ModeId == "rig.bus", 10f, "bus host: mods are told the mode is rig.bus");
 
 			RigScenarios.Check(Send("host>all reliable", true), "bus host: a reliable message went out");
 			RigScenarios.Check(Mod.Ctx.Net.Send(new byte[3800]), "bus host: 3800 bytes go out reliably");
 			RigScenarios.Check(!Mod.Ctx.Net.Send(new byte[3801]), "bus host: 3801 bytes are refused");
-			RigScenarios.Check(!Mod.Ctx.Net.Send(new byte[1101], HalfGripTools.Net.Everyone, false), "bus host: 1101 bytes are refused unreliably");
+			RigScenarios.Check(!Mod.Ctx.Net.Send(new byte[1101], HalfGripTools.NetRoom.Everyone, false), "bus host: 1101 bytes are refused unreliably");
 			RigScenarios.Check(!Mod.Ctx.Net.SendToHost(new byte[1]), "bus host: SendToHost does nothing on the host");
 			float until = Time.realtimeSinceStartup + 20f;
 			while (!got.Contains("client>host fast") && Time.realtimeSinceStartup < until)
@@ -131,15 +131,15 @@ namespace Multiplayer
 
 		internal static IEnumerator BusClient()
 		{
-			RigScenarios.Check(HalfGripTools.Net.Available && HalfGripTools.Net.InRoom && !HalfGripTools.Net.IsHost && HalfGripTools.Net.HostId == Room.HostId, "bus client: HalfGripTools.Net sees the room and the client role");
-			RigScenarios.Check(HalfGripTools.Net.Players.Count == RigRoom.Players, "bus client: the player list has everybody (" + HalfGripTools.Net.Players.Count + ")");
+			RigScenarios.Check(HalfGripTools.NetRoom.Available && HalfGripTools.NetRoom.InRoom && !HalfGripTools.NetRoom.IsHost && HalfGripTools.NetRoom.HostId == Room.HostId, "bus client: HalfGripTools.Net sees the room and the client role");
+			RigScenarios.Check(HalfGripTools.NetRoom.Players.Count == RigRoom.Players, "bus client: the player list has everybody (" + HalfGripTools.NetRoom.Players.Count + ")");
 			Listen();
 			Mod.Ctx.Net.RegisterMode(BusMode());
 			RigScenarios.Signal("busready");
 			yield return RigScenarios.WaitFor(() => got.Contains("host>all reliable"), 30f, "bus client: the host's reliable message arrived");
 			yield return RigScenarios.WaitFor(() => bigLength == 3800, 30f, "bus client: the 3800-byte message arrived whole");
 			yield return RigScenarios.WaitFor(() => Room.Settings.Mode == RaceSettings.ModeMod && Room.Settings.ModeId == "rig.bus" && Room.Cap == 8, 10f, "bus client: the roster carries the registered mode (cap " + Room.Cap + ")");
-			RigScenarios.Check(HalfGripTools.Net.ModeId == "rig.bus", "bus client: mods are told the mode is rig.bus");
+			RigScenarios.Check(HalfGripTools.NetRoom.ModeId == "rig.bus", "bus client: mods are told the mode is rig.bus");
 			RigScenarios.Check(Mod.Ctx.Net.SendToHost(Encoding.UTF8.GetBytes("client>host reliable")), "bus client: a reliable message to the host went out");
 			float until = Time.realtimeSinceStartup + 25f;
 			while (!got.Contains("host>all done") && Time.realtimeSinceStartup < until)

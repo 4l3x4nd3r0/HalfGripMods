@@ -123,7 +123,7 @@ namespace Multiplayer
 		private const float MemberViewX = 134f, MemberViewY = -5f, MemberViewW = 1124f, MemberViewH = 366f;
 		private const float ResultViewY = -3f, ResultViewH = 494f;
 
-		internal static GameObject Build(MainMenu owner)
+		internal static GameObject Build(MainMenu owner, string rootName = "Multiplayer")
 		{
 			Transform ui = owner.transform;
 			Transform sections = ui.Find("SidePanel/Sections");
@@ -140,7 +140,7 @@ namespace Multiplayer
 				return null;
 			}
 
-			GameObject root = new GameObject("Multiplayer", typeof(RectTransform));
+			GameObject root = new GameObject(rootName, typeof(RectTransform));
 			root.transform.SetParent(sections, false);
 			Ui.Stretch((RectTransform)root.transform, 0f);
 			LobbyScreen self = root.AddComponent<LobbyScreen>();
@@ -168,7 +168,11 @@ namespace Multiplayer
 			Ui.Stretch(background, 0f);
 			GameObject header = Instantiate(headerTemplate, root, false);
 			header.name = "Header";
+#if HALFGRIP_OFFICIAL_NET
+			header.GetComponent<TMP_Text>().text = "RACE ROOMS"; // the game has a MULTIPLAYER screen of its own
+#else
 			header.GetComponent<TMP_Text>().text = "MULTIPLAYER";
+#endif
 			subtitle = Ui.Label(root, "Race other players over Steam. Everybody needs the same mods.", 33f, Ui.Soft, TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f), new Vector2(0f, 345f), new Vector2(1400f, 50f));
 
 			home = (RectTransform)new GameObject("Home", typeof(RectTransform)).transform;
@@ -593,7 +597,7 @@ namespace Multiplayer
 				new KeyValuePair<int, string>(RaceSettings.ModeDemolition, ""),
 				new KeyValuePair<int, string>(RaceSettings.ModeCustom, "")
 			};
-			foreach (HalfGripTools.NetMode mode in HalfGripTools.Net.Modes)
+			foreach (HalfGripTools.NetMode mode in HalfGripTools.NetRoom.Modes)
 			{
 				options.Add(new KeyValuePair<int, string>(RaceSettings.ModeMod, mode.Id));
 			}

@@ -144,9 +144,9 @@ Known: a saved run that includes Temple of Drift needs the mod loaded to be rest
 Settings: `TestMode` (every race on Temple of Drift), `BenchmarkFactor` (scales the time objectives), `Grip` and `Drag` under `Dirt`, `Gravel`, `Cave` (`ShortWayGrip`, `ShortWayDrag`, `Lights`, `GuideWalls`, `ForkLanterns`), `TarmacGrip` under `Touge` and `Hairpins`, `PaintGrip`, `FellSpeed` and `SpeedKept` under `Bamboo`, `EntranceBreakSpeed`, `ExitBreakSpeed` and `SpeedKept` under `Timber`, `SpeedLossPerPiece`, `ContainSpeed`, `BreakSpeed` and `BendSpeedLoss` (guardrail, same rules as Highway), `Trees`, `Enabled` (music), `ShowPath`.
 
 ### Multiplayer
-Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo").
+Races for 2 to 6 players over Steam, up to 20 in CUSTOM mode. It switches on the MULTIPLAYER button of the main menu (the demo locks it with "Not in demo"). On a game build that already has a MULTIPLAYER screen of its own, that button is left alone and the mod's rooms are under a second button, RACE ROOMS.
 
-**Using it.** The MULTIPLAYER screen has GARAGE, HOST ROOM and JOIN ROOM.
+**Using it.** The MULTIPLAYER screen (RACE ROOMS on those builds) has GARAGE, HOST ROOM and JOIN ROOM.
 
 - GARAGE opens the game's garage with no room: no shop, no money, every item in the inventory except map rerolls, run boons and other consumables. What you fit is kept in `storage\multiplayer\loadout.txt` in HalfGripTools' data folder. With nothing fitted you start with the Gunslinger and Nitro Head items, without Nitro Head's handicap. Esc goes back.
 - HOST ROOM makes a Steam lobby and a 6-character code. Others type it under JOIN ROOM, or accept a Steam invite while they are at the main menu. INVITE FRIENDS lists your online Steam friends. The host can lock the room and kick players.

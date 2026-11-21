@@ -431,7 +431,10 @@ namespace Multiplayer
 			Traverse t = Traverse.Create(manager);
 			List<Transform> starts = t.Field("startPositions").GetValue<List<Transform>>();
 			Transform playerStart = t.Field("playerStart").GetValue<Transform>();
-			float gridHeight = t.Field("normalGridHeight").GetValue<float>();
+			// Reflection into the game: TrackManager.normalGridHeight (0.419 and older). 0.420 removed the field (the game places its grid by
+			// TrackManager.GRID_CLEARANCE instead); 1 is what the field held unless a track variant moved the grid, so it is the fallback.
+			Traverse gridField = t.Field("normalGridHeight");
+			float gridHeight = gridField.FieldExists() ? gridField.GetValue<float>() : 1f;
 			List<Transform> slots = new List<Transform> { playerStart };
 			slots.AddRange(starts.Take(5));
 			// a track with fewer grid spots than the room has cars gets extra spots behind the start, along the racing line

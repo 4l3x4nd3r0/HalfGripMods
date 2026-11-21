@@ -177,6 +177,15 @@ namespace Multiplayer
 
 		private void OnInvite(Lobby l, SteamId friend)
 		{
+#if HALFGRIP_OFFICIAL_NET
+			// The game reads invites to its own lobbies and opens its own screen for them. Taking those too would join the same lobby twice and then
+			// leave it as "not a Multiplayer room", so only a lobby that carries this mod's room data is this mod's. (If Steam has not sent the
+			// lobby's data with the invite this is empty and the invite is left to the game; a room is then joined with its code.)
+			if (string.IsNullOrEmpty(l.GetData("hg_mp")))
+			{
+				return;
+			}
+#endif
 			if (InviteRequested != null)
 			{
 				InviteRequested(new RoomRef { Handle = l.Id.Value });

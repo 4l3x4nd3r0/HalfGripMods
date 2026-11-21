@@ -514,6 +514,14 @@ namespace Multiplayer
 				Room.Leave("You left the room.");
 				return false; // stay on the MULTIPLAYER screen; Esc once more goes to the main menu
 			}
+#if HALFGRIP_OFFICIAL_NET
+			// The game's MainMenu.Back hands Esc to its own lobby screen while the Multiplayer view is up; when this mod's screen is the one up, Esc closes it.
+			if (MenuBeside.IsUp(__instance))
+			{
+				__instance.CloseMultiplayer();
+				return false;
+			}
+#endif
 			return true;
 		}
 	}
