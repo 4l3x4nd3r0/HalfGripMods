@@ -502,6 +502,20 @@ namespace HalfGripModsInstaller
 			string dir = gameDir;
 			string folder = EnsureWork();
 			CheckResult result = last;
+			// An older HalfGripTools (a plugin inside BepInEx) is replaced, not mixed with 2.0: ask once, saying what goes and what stays.
+			bool cleanUpgrade = false;
+			if (tools && result.Tools != null && Setup.ChooseHost(dir, result.Tools) == HostKind.Standalone)
+			{
+				Setup.OldInstall old = Setup.FindOld(dir);
+				if (old.Any)
+				{
+					if (MessageBox.Show(this, old.Question() + "\n\nContinue?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+					{
+						return;
+					}
+					cleanUpgrade = true;
+				}
+			}
 			// Installing a suggested mod is the player's choice, so from now on its link is one of their own.
 			foreach (ModCandidate suggested in mods.Where(m => m.Recommended))
 			{
@@ -515,7 +529,7 @@ namespace HalfGripModsInstaller
 			bool ok = false;
 			try
 			{
-				await Task.Run(() => Setup.Install(dir, result.BepInExTarget, bepinex, result.Tools, tools, mods, links, folder, Status));
+				await Task.Run(() => Setup.Install(dir, result.BepInExTarget, bepinex, result.Tools, tools, mods, links, folder, Status, cleanUpgrade));
 				ok = true;
 			}
 			catch (Exception e)

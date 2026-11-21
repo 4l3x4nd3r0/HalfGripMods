@@ -10,6 +10,8 @@ One program that puts HalfGripTools and the mods into Half Grip Demo, and can al
 3. Press **INSTALL ALL**. It puts in what the mods need and every official mod. Or press **INSTALL** on a single card.
 4. Start the game from Steam. The first start is a bit slower while the mods get ready.
 
+**Coming from an older HalfGripTools (1.x, the plugin inside BepInEx)?** The installer notices, says what it found and what it will do, and asks once. If you say yes it replaces the old install with HalfGripTools 2.0: it takes out the old plugin, takes out BepInEx when nothing else in the game uses it, copies your mod settings and saved data to where 2.0 keeps them (then removes the old files), moves mods you added by hand from `BepInEx\HalfGripMods` to `Mods`, and puts in 2.0 and the official mods fresh. Your saves, settings, maps and mods you added yourself are kept. If another BepInEx plugin is in the game, BepInEx stays and HalfGripTools 2.0 runs inside it.
+
 To update, open the installer again. To take everything out, open the menu (the three lines, top right) and choose **Remove the mods from the game**. Your saves are never touched.
 
 More, if you want it:
@@ -25,6 +27,7 @@ More, if you want it:
 - Downloads only from `github.com`: the newest HalfGripTools (checked against its `SHA256SUMS.txt`), the mods, and BepInEx only where HalfGripTools has to run inside it (the version in `config.json`, checked against its SHA-256).
 - Writes in the game folder only: `Mods\` (the mods, and `Mods\installer-sources.txt`: the links you added and where each mod came from), `HalfGripTools\`, `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, and `BepInEx\` where HalfGripTools runs inside it. It moves mod folders an older installer put in `BepInEx\HalfGripMods` into `Mods\`. Removing everything also removes HalfGripTools' data folder (`LocalLow\Half Games\HalfGrip\Mods`: settings, cache, log). Its own files are in `%USERPROFILE%\AppData\LocalLow\Half Games\HalfGripMods`: `config.json`, and a `cache` of GitHub's answers. Nothing about you is kept there.
 - Refuses any mod that contains a program file (`.dll .exe .so .dylib .bat .cmd .ps1 .vbs .msi .scr .com`): a mod here is readable source and pictures only.
+- Deletes only what an older HalfGripTools put in, and only after you said yes to the question above: its plugin, its settings files (after copying them), its compile cache, and BepInEx when nothing else uses it. Never a save, never another plugin, never a mod you added yourself.
 - No registry writes (it only reads Steam's path), no saves, no other mods. A log of what it did is `%TEMP%\HalfGrip-Mods-Installer.log`.
 
 ---

@@ -381,7 +381,7 @@ namespace HalfGripModsInstaller
 		/// links. Returns what it did, one line each. HalfGripTools 2.0 starts by itself through Doorstop and needs no BepInEx; it runs inside BepInEx only
 		/// where other BepInEx plugins are already in the game (see <see cref="ChooseHost"/>).
 		/// </summary>
-		internal static List<string> Install(string gameDir, BepInExPlan bepinex, bool installBepInEx, ToolsPlan tools, bool installTools, List<ModCandidate> mods, List<Source> extraSources, string work, Action<string> report)
+		internal static List<string> Install(string gameDir, BepInExPlan bepinex, bool installBepInEx, ToolsPlan tools, bool installTools, List<ModCandidate> mods, List<Source> extraSources, string work, Action<string> report, bool cleanUpgrade = false)
 		{
 			List<string> done = new List<string>();
 			if (GameFolder.IsRunning())
@@ -389,6 +389,14 @@ namespace HalfGripModsInstaller
 				throw new PlainException("Half Grip is running. Close the game and try again.");
 			}
 			HostKind host = ChooseHost(gameDir, tools);
+			// A clean upgrade (the player said yes to the question in the window, or passed --upgrade): the settings of the old install are copied to where
+			// HalfGripTools 2.0 keeps them first, because the old folders are taken out below. Only when HalfGripTools starts by itself.
+			bool upgrade = cleanUpgrade && installTools && tools != null && host == HostKind.Standalone;
+			if (upgrade)
+			{
+				report("Keeping your settings ...");
+				MigrateOldSettings(gameDir, done);
+			}
 
 			if (!installBepInEx || host != HostKind.BepInEx)
 			{
@@ -467,6 +475,11 @@ namespace HalfGripModsInstaller
 				done.Add("Installed mod " + mod.Name + " " + mod.Version + ".");
 			}
 			MoveLegacyMods(gameDir, memory, done);
+			if (upgrade)
+			{
+				report("Taking out the old install ...");
+				CleanOld(gameDir, done);
+			}
 			memory.Save(gameDir);
 
 			// Only what was put in this time is checked: installing HalfGripTools alone must not complain about BepInEx.
@@ -539,6 +552,179 @@ namespace HalfGripModsInstaller
 			if (Directory.GetFileSystemEntries(legacy).All(e => Path.GetFileName(e) == "installer-sources.txt"))
 			{
 				Directory.Delete(legacy, true);
+			}
+		}
+
+		/// <summary>What an older install of HalfGripTools (1.x: a plugin inside BepInEx) left in the game, found before anything is changed.</summary>
+		internal sealed class OldInstall
+		{
+			/// <summary>The version of the HalfGripTools plugin inside BepInEx, or empty.</summary>
+			internal string Version = "";
+
+			internal bool Plugin;
+
+			/// <summary>BepInEx is in the game and nothing but HalfGripTools uses it (no other plugin, patcher or MonoMod patch), so 2.0 can take it out.</summary>
+			internal bool BepInExToRemove;
+
+			/// <summary>BepInEx is in the game and something else uses it: it stays.</summary>
+			internal bool BepInExShared;
+
+			internal int LegacyMods;
+
+			internal int SettingsFiles;
+
+			internal bool Any => Plugin || BepInExToRemove || LegacyMods > 0 || SettingsFiles > 0;
+
+			/// <summary>The question for the window: what is found, what the upgrade does, what it keeps.</summary>
+			internal string Question()
+			{
+				StringBuilder text = new StringBuilder();
+				text.Append("An older HalfGripTools install was found").Append(Version != "" && Version != "installed" ? " (" + Version + ")" : "").Append(".\n");
+				text.Append("HalfGripTools 2.0 starts by itself and does not need BepInEx. Installing will:\n\n");
+				if (Plugin)
+				{
+					text.Append("  - take out the old HalfGripTools plugin\n");
+				}
+				if (BepInExToRemove)
+				{
+					text.Append("  - take out BepInEx (nothing else in the game uses it)\n");
+				}
+				if (SettingsFiles > 0)
+				{
+					text.Append("  - copy your mod settings (").Append(SettingsFiles).Append(" file").Append(SettingsFiles == 1 ? "" : "s").Append(") to the new settings folder, then remove the old ones\n");
+				}
+				if (LegacyMods > 0)
+				{
+					text.Append("  - move the ").Append(LegacyMods).Append(" mod folder").Append(LegacyMods == 1 ? "" : "s").Append(" in BepInEx\\HalfGripMods to the Mods folder\n");
+				}
+				text.Append("  - put in HalfGripTools 2.0 and the official mods, fresh\n\n");
+				text.Append("Kept: your saves, your settings, anything you made (maps, saved data), and mods you added yourself.");
+				if (BepInExShared)
+				{
+					text.Append("\nBepInEx stays: other plugins in the game use it, so HalfGripTools 2.0 will run inside it.");
+				}
+				return text.ToString();
+			}
+		}
+
+		/// <summary>Looks for what an older HalfGripTools left in the game. Changes nothing.</summary>
+		internal static OldInstall FindOld(string gameDir)
+		{
+			OldInstall old = new OldInstall();
+			string bepinex = Path.Combine(gameDir, "BepInEx");
+			old.Plugin = Directory.Exists(Path.Combine(bepinex, "plugins", "HalfGripTools"));
+			old.Version = old.Plugin ? (InstalledTools(gameDir, HostKind.BepInEx) ?? "") : "";
+			if (Directory.Exists(bepinex))
+			{
+				bool others = OtherPlugins(gameDir).Length > 0
+					|| HasEntries(Path.Combine(bepinex, "patchers"))
+					|| HasEntries(Path.Combine(bepinex, "monomod"));
+				old.BepInExToRemove = !others;
+				old.BepInExShared = others;
+			}
+			string legacy = LegacyModsDir(gameDir);
+			old.LegacyMods = Directory.Exists(legacy) ? Directory.GetDirectories(legacy).Length : 0;
+			string config = Path.Combine(bepinex, "config");
+			old.SettingsFiles = Directory.Exists(config) ? Directory.GetFiles(config, "halfgrip.*").Length + Directory.GetFiles(config, "HalfGripTools.*").Length : 0;
+			return old;
+		}
+
+		private static bool HasEntries(string folder)
+		{
+			return Directory.Exists(folder) && Directory.GetFileSystemEntries(folder).Length > 0;
+		}
+
+		/// <summary>
+		/// What the loader does by itself on its first start (LegacyMigration), done here because the old folders are about to go: 1.x kept settings in
+		/// BepInEx\config as <c>halfgrip.&lt;id&gt;.cfg</c>. They become <c>config\&lt;id&gt;.cfg</c> in HalfGripTools' data folder, other files a mod wrote there become
+		/// <c>storage\&lt;id&gt;\&lt;name&gt;</c>, and the mod manager's choices become <c>mods.json</c>. Copies only, and never over a file that is already there.
+		/// </summary>
+		private static void MigrateOldSettings(string gameDir, List<string> done)
+		{
+			string source = Path.Combine(gameDir, "BepInEx", "config");
+			if (!Directory.Exists(source))
+			{
+				return;
+			}
+			string data = ToolsDataDir();
+			int copied = 0;
+			foreach (string file in Directory.GetFiles(source, "halfgrip.*"))
+			{
+				string[] parts = Path.GetFileName(file).Split(new[] { '.' }, 3);
+				if (parts.Length < 3)
+				{
+					continue;
+				}
+				string target = parts[2] == "cfg"
+					? Path.Combine(data, "config", parts[1] == "tools" ? "HalfGripTools.cfg" : parts[1] + ".cfg")
+					: Path.Combine(data, "storage", parts[1], parts[2]);
+				copied += CopyIfMissing(file, target);
+			}
+			copied += CopyIfMissing(Path.Combine(source, "HalfGripTools.mods.json"), Path.Combine(data, "mods.json"));
+			if (copied > 0)
+			{
+				done.Add("Kept your settings: copied " + copied + " file(s) to " + data + ".");
+			}
+		}
+
+		private static int CopyIfMissing(string from, string to)
+		{
+			if (!File.Exists(from) || File.Exists(to))
+			{
+				return 0;
+			}
+			Directory.CreateDirectory(Path.GetDirectoryName(to));
+			File.Copy(from, to);
+			return 1;
+		}
+
+		/// <summary>
+		/// The second half of a clean upgrade, after the 2.0 files are in: the old plugin, the old settings files (copied before), the old compile cache,
+		/// and BepInEx itself when nothing else uses it. Never the player's saves, mods, maps or saved data.
+		/// </summary>
+		private static void CleanOld(string gameDir, List<string> done)
+		{
+			OldInstall old = FindOld(gameDir);
+			string bepinex = Path.Combine(gameDir, "BepInEx");
+			if (old.Plugin)
+			{
+				Directory.Delete(Path.Combine(bepinex, "plugins", "HalfGripTools"), true);
+				done.Add("Took out the old HalfGripTools plugin.");
+			}
+			if (old.BepInExToRemove)
+			{
+				Directory.Delete(bepinex, true);
+				done.Add("Took out BepInEx (HalfGripTools 2.0 does not need it).");
+				// BepInEx's own changelog sits next to the game's files; it goes with it, a file that is not that one stays.
+				string changelog = Path.Combine(gameDir, "changelog.txt");
+				if (File.Exists(changelog) && File.ReadAllText(changelog).IndexOf("commits since v5", StringComparison.OrdinalIgnoreCase) >= 0)
+				{
+					File.Delete(changelog);
+				}
+			}
+			else if (Directory.Exists(bepinex))
+			{
+				string cache = Path.Combine(bepinex, "cache", "HalfGripMods");
+				if (Directory.Exists(cache))
+				{
+					Directory.Delete(cache, true);
+				}
+				string config = Path.Combine(bepinex, "config");
+				if (Directory.Exists(config))
+				{
+					foreach (string pattern in new[] { "halfgrip.*", "HalfGripTools.*" })
+					{
+						foreach (string file in Directory.GetFiles(config, pattern))
+						{
+							File.Delete(file);
+						}
+					}
+				}
+			}
+			string compiled = Path.Combine(ToolsDataDir(), "cache");
+			if (Directory.Exists(compiled))
+			{
+				Directory.Delete(compiled, true);
 			}
 		}
 

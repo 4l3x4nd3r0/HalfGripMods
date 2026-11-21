@@ -40,7 +40,7 @@ namespace HalfGripModsInstaller
 
 		/// <summary>
 		/// No arguments: the window. For testing, and for people who like a command line:
-		///   --game-dir &lt;folder&gt;   --add &lt;link&gt; (repeat)   --now (ask GitHub again)   --config &lt;file or address&gt;   --check   --install   (the last two run without a window)
+		///   --game-dir &lt;folder&gt;   --add &lt;link&gt; (repeat)   --now (ask GitHub again)   --config &lt;file or address&gt;   --check   --install   --upgrade (with --install: replace an older HalfGripTools install, as the window does after its question)   (the last two run without a window)
 		/// Only for trying things out: --data-dir &lt;folder&gt; (keep config and cache there instead of in LocalLow), --mods-dir &lt;folder&gt; (take the
 		/// official mods from a folder on this PC), --tools-dir &lt;folder&gt; (take the HalfGripTools release zips and SHA256SUMS.txt from a folder on this PC), --render &lt;png&gt; --size WxH [--page &lt;card key|how|about&gt;] (draw the window into a picture).
 		/// </summary>
@@ -50,7 +50,8 @@ namespace HalfGripModsInstaller
 			string gameDir = null;
 			List<string> links = new List<string>();
 			bool check = false;
-			bool install = false;
+				bool install = false;
+			bool upgrade = false;
 			string uninstall = null;
 			bool withData = false;
 			string render = null;
@@ -103,6 +104,9 @@ namespace HalfGripModsInstaller
 					case "--install":
 						install = true;
 						break;
+					case "--upgrade":
+						upgrade = true;
+						break;
 				}
 			}
 			if (uninstall != null)
@@ -115,7 +119,7 @@ namespace HalfGripModsInstaller
 			{
 				AttachConsole(-1);
 				Log.ToConsole = true;
-				return Headless(gameDir, links, install);
+				return Headless(gameDir, links, install, upgrade);
 			}
 			Cache.Sweep();
 			Application.EnableVisualStyles();
@@ -188,7 +192,7 @@ namespace HalfGripModsInstaller
 			}
 		}
 
-		private static int Headless(string gameDir, List<string> links, bool install)
+		private static int Headless(string gameDir, List<string> links, bool install, bool upgrade)
 		{
 			string work = Path.Combine(Path.GetTempPath(), "HalfGripInstaller-" + Guid.NewGuid().ToString("N"));
 			try
@@ -229,7 +233,7 @@ namespace HalfGripModsInstaller
 				}
 				// Like "Install all" in the window: suggestions are not installed unless someone picks them.
 				List<ModCandidate> mods = result.OwnMods.Where(m => m.Problem == null).ToList();
-				foreach (string line in Setup.Install(gameDir, result.BepInExTarget, result.BepInExNeeded, result.Tools, result.ToolsNeeded, mods, own.Skip(1).ToList(), work, Log.Write))
+				foreach (string line in Setup.Install(gameDir, result.BepInExTarget, result.BepInExNeeded, result.Tools, result.ToolsNeeded, mods, own.Skip(1).ToList(), work, Log.Write, upgrade))
 				{
 					Log.Write(line);
 				}
